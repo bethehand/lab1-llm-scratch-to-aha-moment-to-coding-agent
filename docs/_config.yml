@@ -1,5 +1,5 @@
-title: 从零预训练到 coding agent
-description: 四张 RTX 4090 上的十五个实验：一次只变一个量，跑前写预测，跑完对账
+title: "LLM from scratch → aha moment → coding agent"
+description: "Fifteen experiments on four RTX 4090s · 四张 4090 上的十五个实验"
 theme: jekyll-theme-minimal
 lang: zh-CN
 markdown: kramdown
