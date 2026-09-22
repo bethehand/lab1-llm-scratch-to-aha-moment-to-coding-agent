@@ -1,5 +1,5 @@
 ---
-title: LLM from scratch, to the aha moment, to a coding agent
+title: "LLM from scratch, to the aha moment, to a coding agent"
 ---
 
 # LLM from scratch, to the aha moment, to a coding agent

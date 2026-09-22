@@ -1,6 +1,6 @@
 ---
-title: From pretraining from scratch to a coding agent
-description: Four RTX 4090s, one person, four weeks, fifteen experiments: one variable at a time, predictions written before each run, reconciled after
+title: "From pretraining from scratch to a coding agent"
+description: "Four RTX 4090s, one person, four weeks, fifteen experiments: one variable at a time, predictions written before each run, reconciled after"
 lang: en
 ---
 

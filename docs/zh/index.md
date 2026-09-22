@@ -1,6 +1,6 @@
 ---
-title: 从零预训练到 coding agent
-description: 四张 RTX 4090、一个人、四周、十五个实验：一次只变一个量，跑前写预测，跑完对账
+title: "从零预训练到 coding agent"
+description: "四张 RTX 4090、一个人、四周、十五个实验：一次只变一个量，跑前写预测，跑完对账"
 lang: zh-CN
 ---
 
