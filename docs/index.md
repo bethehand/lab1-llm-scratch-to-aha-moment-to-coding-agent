@@ -9,7 +9,7 @@ title: LLM from scratch, to the aha moment, to a coding agent
 - **[English report](en/)**
 - **[中文报告](zh/)**
 
-Code: [github.com/<user>/lab1-llm-scratch-to-aha-moment-to-coding-agent](https://github.com/<user>/lab1-llm-scratch-to-aha-moment-to-coding-agent)
+Code: [github.com/bethehand/lab1-llm-scratch-to-aha-moment-to-coding-agent](https://github.com/bethehand/lab1-llm-scratch-to-aha-moment-to-coding-agent)
 
 ---
 
