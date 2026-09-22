@@ -1,74 +1,83 @@
 # LLM from scratch → the aha moment → a coding agent
 
-Fifteen experiments on four RTX 4090s: one variable at a time, predictions written before each run and reconciled after. Pretraining from scratch (95M / 201M), SFT, GRPO on GSM8K, chasing the R1 "aha moment" on Countdown, a stateful number-guessing environment, and a four-stage coding-agent curriculum (fix bugs → bundle bugs → write real modules → verify without tests). Full report with every setting, table, figure and the prediction ledger: **[English](https://bethehand.github.io/lab1-llm-scratch-to-aha-moment-to-coding-agent/en/) · [中文](https://bethehand.github.io/lab1-llm-scratch-to-aha-moment-to-coding-agent/zh/)**
+Fifteen experiments on four RTX 4090s: one variable at a time, predictions written before each run and reconciled after. Pretraining from scratch (95M / 201M), SFT, GRPO on GSM8K, chasing the R1 "aha moment" on Countdown, a stateful number-guessing environment, and a four-stage coding-agent curriculum (fix bugs → bundle bugs → write real modules → verify without tests).
 
----
+**Full report** with every setting, table, figure and the prediction ledger: **[English](https://bethehand.github.io/lab1-llm-scratch-to-aha-moment-to-coding-agent/en/) · [中文](https://bethehand.github.io/lab1-llm-scratch-to-aha-moment-to-coding-agent/zh/)**　·　Chinese README: [README.zh-CN.md](README.zh-CN.md)
 
-# 从零预训练到 coding agent
+## Headline results
 
-四张 RTX 4090 上的十五个实验：一次只变一个量，跑前写预测，跑完对账。
-
-**报告 / Report：** https://bethehand.github.io/lab1-llm-scratch-to-aha-moment-to-coding-agent/ （[中文](https://bethehand.github.io/lab1-llm-scratch-to-aha-moment-to-coding-agent/zh/) · [English](https://bethehand.github.io/lab1-llm-scratch-to-aha-moment-to-coding-agent/en/)）← 开好 Pages 后把用户名填上
-
-## 这个仓库有什么
-
-| 层 | 文件 | 干什么 |
+| Line | What was measured | Result |
 |---|---|---|
-| 造题 | `mutate.py` `collect_exercism.py` `collect_mbpp_weak.py` `countdown.py` `guess_env.py` | 题加标准答案，可无限造 |
-| 环境 | `code_env.py` `pkg_env.py` `ex_env.py` `guess_env.py` | stops / fake_tags / step / score 四接口 |
-| 沙盒和秤 | 环境内部，`strict_score.py` | 子进程隔离、五防线、隐藏测试、只奖终局 |
-| harness | `harness.py`（同步和异步）`calc_tool_vllm.py`（HF / vLLM 后端） | 停、环境、注入、续；注入段 mask |
-| 训练器 | `grpo_tool_mp_vllm.py` | 四进程、vLLM 同卡共存、每步灌权重、动态采样、分块 logp、KL 锚、任务分支、仪表盘 |
-| SFT | `sft_qwen.py` | 只对回答算 loss，注入段 −100 |
-| 老师 | `enum_traces.py` `make_*_demos.py` `deepseek_tool.py` | 程序老师和 DeepSeek 老师，秤筛后落盘 |
-| 评测 | `eval_*.py` `pass_k.py` `baseline_*.py` `compare_*.py` | ×8 的 pass@1、×32 的 pass@32、行为读数、作弊探针 |
-| 对话 | `chat_*_vllm.py` | 原样对话看模型行为 |
-| 预训练 | `config.py` `model.py` `train.py` `prepare_data.py` `estimate.py` `evaluate.py` | 从零训 95M / 201M |
-| 单测 | `tests/` | 假模型 + 真沙盒 |
+| Pretraining | 95M on 1.5B tokens, 201M on 10B tokens (FineWeb-Edu) | perplexity 30.2 / 18.1; beats the Chinchilla formula, loses to GPT-2 small by 0.15 nats |
+| GSM8K GRPO | pass@1 vs pass@64, Qwen2.5-1.5B-Instruct | pass@1 +.21, pass@64 unchanged at .980: RL reorders, it does not create |
+| Countdown (4 numbers) | pass@1 lifted arm by arm on Qwen2.5-1.5B Base | .02 → .39 (RL) → .56 (seeded SFT+RL) → .71 (calculator) → .75 (subtractive scale + anchor) → .98 with an expert on call |
+| Number guessing | first stateful environment, three arms | pure RL grows bisection from a 4% seed (.63); 200 seeded demos beat both RL arms (.976); N=1000 generalisation .14 vs .71 |
+| Coding, four stages | SFT then RL on Qwen2.5-Coder-1.5B | RL lifts pass@1 by .10 to .18 at every stage; pass@32 ceilings barely move; on held-out problems RL cuts the tail |
+| Price of observation | same problems, same hidden tests, only the visible tests removed | SFT −.09, RL −.16, ceiling −.06; the whole price lands in the fix loop after the first version |
 
-脚本平铺在根目录，彼此按文件名 import，不要移动。
+Six regularities recur with their own numbers: RL reweights inside the support set; pretraining gives the parts, SFT the procedure, RL the preference; the shape of the reward decides what gets learned; the price of observation; fixing is a part, not a habit; path-opening = support density × feedback density × sampling budget. All conclusions are limited to the model sizes (95M to 1.5B) and tasks used here.
 
-## 环境
+## What is in this repository
 
-两个 venv（GS01 上的实际配置，版本见 `requirements-*.txt`）：
+| Layer | Files | Role |
+|---|---|---|
+| Problem builders | `mutate.py` `collect_exercism.py` `collect_mbpp_weak.py` `countdown.py` `guess_env.py` | problems with ground truth, generated without limit |
+| Environments | `code_env.py` `pkg_env.py` `ex_env.py` `guess_env.py` | the four-method interface: stops / fake_tags / step / score |
+| Sandbox and scale | inside the environments, `strict_score.py` | subprocess isolation, five defenses, hidden tests, terminal-only reward |
+| Harness | `harness.py` (sync and async), `calc_tool_vllm.py` (HF / vLLM backends) | stop → environment → inject → continue; injected spans are masked |
+| Trainer | `grpo_tool_mp_vllm.py` | four processes, vLLM co-located on the training GPUs, weights pushed every step, dynamic sampling, chunked log-probs, KL anchor, per-task branches, dashboard |
+| SFT | `sft_qwen.py` | loss on the response only; injected observations labelled −100 |
+| Teachers | `enum_traces.py` `make_*_demos.py` `deepseek_tool.py` | program teacher and DeepSeek teacher; demonstrations kept only if they pass the scale |
+| Evaluation | `eval_*.py` `pass_k.py` `baseline_*.py` `compare_*.py` | pass@1 at ×8, pass@32 at ×32, behavioural readouts, cheating probes |
+| Chat | `chat_*_vllm.py` | raw conversations to inspect model behaviour |
+| Pretraining | `config.py` `model.py` `train.py` `prepare_data.py` `estimate.py` `evaluate.py` | 95M / 201M from scratch |
+| Tests | `tests/` | fake model + real sandbox |
+| Lab notebook | `PLAN.md` | the raw record (Chinese, ~11,000 lines); every number in the report can be traced back to it |
 
-- `vllm_env`：vLLM 0.8.5.post1、transformers 4.51.3。凡碰 vLLM 的脚本一律在这里跑：训练器、eval_*、chat_*_vllm、export_hf、tests、make_*_demos。
-- `train_env`：torch 2.6、transformers 5.x。纯 HF 训练（预训练、sft_qwen.py 两个环境都能跑）。
+Scripts sit flat in the root and import each other by file name. Do not move them.
 
-DeepSeek 密钥只走环境变量：`export DEEPSEEK_API_KEY=...`，任何文件里都不要写。
+## Environment
 
-## 复现两个最小实验
+Two virtual environments were used on the training machine (exact versions in `requirements-*.txt`):
 
-猜数字，三臂之一，约 35 分钟：
+- `vllm_env`: vLLM 0.8.5.post1, transformers 4.51.3. Everything that touches vLLM runs here: the trainer, `eval_*`, `chat_*_vllm`, `export_hf`, `tests`, `make_*_demos`.
+- `train_env`: torch 2.6, transformers 5.x. Pure HF training (pretraining; `sft_qwen.py` runs in either).
+
+The DeepSeek key is read only from the environment variable `DEEPSEEK_API_KEY`. Never write it into a file.
+
+## Reproducing two small experiments
+
+Number guessing, one of the three arms, about 35 minutes on four 4090s:
 
 ```bash
 source ~/vllm_env/bin/activate
-torchrun --nproc_per_node=4 grpo_tool_mp_vllm.py --task guess --init <起点 ckpt.pt> --steps 150 -k 16 --beta 0.02 --engine vllm --out out_guess
-python3 export_hf.py ...            # ckpt.pt → HF 目录 hf_guess，参数见脚本 docstring
+torchrun --nproc_per_node=4 grpo_tool_mp_vllm.py --task guess --init <starting ckpt.pt> --steps 150 -k 16 --beta 0.02 --engine vllm --out out_guess
+python3 export_hf.py --ckpt out_guess/ckpt.pt --out hf_guess      # ckpt.pt → HF directory
 python3 eval_guess.py --hf-dir hf_guess -n 100 -s 8 --out guess_eval.json
 ```
 
-阶段 ① 修 bug，约两小时：
+Stage ①, bug fixing, about two hours:
 
 ```bash
 python3 mutate.py --data data_code.json --out data/code_bugs.json
 python3 make_code_demos.py --bugs data/code_bugs.json --out sft_code.jsonl
 torchrun --nproc_per_node=4 sft_qwen.py --data sft_code.jsonl --out out_sft_code
 torchrun --nproc_per_node=4 grpo_tool_mp_vllm.py --task code --init out_sft_code/ckpt.pt --steps 150 --engine vllm --dyn-sample 0.5 --out out_codeRL
-python3 export_hf.py ...            # 同上
+python3 export_hf.py --ckpt out_codeRL/ckpt.pt --out hf_codeRL
 python3 eval_code.py --hf-dir hf_codeRL --data data/code_bugs.json -n 100 -s 8 --out code_eval.json
 ```
 
-参数以各脚本顶部的 docstring 为准。
+The docstring at the top of each script is the authority on its arguments.
 
-## 数据与许可
+## Data and licenses
 
-- 代码：MIT。
-- 题库来源：FineWeb-Edu（ODC-By）、Alpaca（CC BY-NC 4.0）、GSM8K（MIT）、MBPP（CC-BY-4.0）、exercism/python（MIT）、Qwen2.5 系列权重按其许可。
-- DeepSeek 生成的教材轨迹不随仓库发布。
+- Code: MIT.
+- Problem sources: FineWeb-Edu (ODC-By), Alpaca (CC BY-NC 4.0), GSM8K (MIT), MBPP (CC-BY-4.0), exercism/python (MIT); Qwen2.5 weights under their own license.
+- Teacher trajectories generated with DeepSeek are not distributed with this repository.
 
-## 引用
+## Citation
 
 ```
-Qirun Li. 从零预训练到 coding agent：四张 4090 上的十五个实验. 2026.
+Qirun Li. LLM from scratch, to the aha moment, to a coding agent: fifteen experiments on four RTX 4090s. 2026.
+https://github.com/bethehand/lab1-llm-scratch-to-aha-moment-to-coding-agent
 ```
