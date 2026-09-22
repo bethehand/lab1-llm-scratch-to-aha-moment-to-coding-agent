@@ -1,0 +1,9 @@
+# vllm_env（GS01 实测版本；发布前在 GS01 上用 `pip freeze` 覆盖这份）
+vllm==0.8.5.post1
+transformers==4.51.3
+torch
+bitsandbytes
+datasets
+numpy
+tqdm
+matplotlib   # 只有 docs/tools/make_charts.py 用

@@ -1,0 +1,8 @@
+title: 从零预训练到 coding agent
+description: 四张 RTX 4090 上的十五个实验：一次只变一个量，跑前写预测，跑完对账
+theme: jekyll-theme-minimal
+lang: zh-CN
+markdown: kramdown
+exclude:
+  - tools
+baseurl: /lab1-llm-scratch-to-aha-moment-to-coding-agent

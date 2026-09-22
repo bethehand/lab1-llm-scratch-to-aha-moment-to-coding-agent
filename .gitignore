@@ -1,0 +1,39 @@
+# 密钥与缓存：永远不进仓库
+.deepseek_key
+*.key
+.env
+cache/
+deepseek_cache.json
+
+# 训练产物与权重（在 GS01 上，另发 Hugging Face）
+out_*/
+hf_*/
+*.pt
+*.safetensors
+*.bin
+!data/*.bin.md
+
+# 评测原始输出与日志
+*_raw.json
+*.log
+hist.json
+screen_*.json
+
+# 大数据文件：按需单独决定（教材 jsonl、题池）
+*.jsonl
+data/countdown*.json
+data/*_ext_*.json
+
+*.bak
+
+# Python / 编辑器 / 系统
+__pycache__/
+*.pyc
+.venv/
+venv/
+.DS_Store
+.idea/
+.vscode/
+
+# 报告里的临时预览
+docs/tools/*.png
