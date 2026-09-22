@@ -40,6 +40,8 @@ Author: Qirun Li　·　Period: August 26 to September 22, 2026　·　Compiled 
 
 ![The price of observation](../assets/en/observation_price.svg)
 
+How to read the three figures: see the end of §3.10, §3.4 and §3.15.
+
 ---
 
 ## 1. Roadmap
@@ -673,6 +675,15 @@ On held-out problems the curves cross by k = 16, and at k = 32 RL is .067 below 
 | Cheating probe | | .280 vs .282 | | did not take the bait |
 
 ![The price of observation](../assets/en/observation_price.svg)
+
+**How to read this figure, in four points.**
+
+1. **How much is lost when the tests are removed.** The left and middle groups are the same two models in two settings. SFT only drops from .33 to .24, a loss of .09; SFT then RL drops from .45 to .29, a loss of .16. The RL model loses more, so part of what RL learned was "lean on the tests".
+2. **Where it is lost.** The six light bars are first drafts and sit at similar heights: .25 and .40 with tests, .25 and .33, .23 and .30 without. Writing a first draft does not use the tests, so removing them leaves the first draft untouched. The whole difference is the "fixing" step between the light and dark bars: +.08 and +.05 with tests, −.01, −.03, −.05, −.02 without. With tests, fixing turns wrong into right; without them, fixing turns right into wrong.
+3. **Retraining for the no-test setting does not recover it.** The right group was trained for the weak setting and taught to write assertions before submitting; its self-test rate is 95%. SFT only scores .19, below the .24 of the middle-group model that was never taught to verify, so teaching verification costs .05; after RL it reaches .28, the same as the middle group's .29 and .16 below the .45 with tests. The act of self-verification is installed, but it is not worth points.
+4. **In every group RL lifts the first draft.** RL raises the first draft by +.15, +.08 and +.07 across the three groups; it never raises the fixing step.
+
+Together: verification = execution + expected values. Tests supply expected values from outside; without them the model writes its own, one in five of which is wrong, so fixing turns from repairing into breaking. Not being able to fix and getting the first draft wrong share one cause: the model misunderstood the problem, and seeing "failed" does not tell it which way to move. Caveat: one RL run per arm, and 100 problems give an error of about ±.03, so the middle group's −.01 and −.03 sit at the noise floor; the direction is consistent across all six bars, the digits should not be over-read.
 
 **Three subtractions.** The same model switching rooms: SFT-②-B .329 → .240, −.09; RL-②-B .446 → .295, −.15. Each trained in its own room, RL vs RL: .446 vs .282, −.16, training did not close the gap. The price of the textbook: SFT-②-B entering the weak room .240 vs SFT-③, which was specifically taught verification, .186, −.05; teaching verification is a net loss in the hands of a 1.5B. Ceiling: after SFT, 100 × 32, .620 vs .560, −.06, and the 7 problems only the strong room can solve are all ones where the prompt cannot state the output format clearly and the tests can.
 
