@@ -23,7 +23,7 @@ Author: Qirun Li　·　Period: August 26 to September 22, 2026　·　Compiled 
 
 **Three definitions and one protocol first.** Support set: the set of solutions to which the model's sampling distribution assigns non-negligible probability; this report uses pass@k at large k as its proxy, pass@32 on the coding line and pass@64 on the Countdown line. Observation strength: strong observation means the environment runs the author-written tests at inference time and returns the verdict; weak observation means the environment provides no tests and the model can only write and run its own assertions. Sampling protocol: pass@1 is the mean over 8 samples per problem at temperature 1; pass@32 is the unbiased estimate from 32 samples per problem; 100 out-of-pool problems, 1σ about .03 to .04, and any difference smaller than that is read as flat.
 
-**Why the base model is fixed at 1.5B.** The base-model size is deliberately held constant so that the effects of SFT and RL can be separated from scale effects: same base model, same scale, one variable at a time, so that differences can be attributed. This is not a scaling study and not a small-model leaderboard; every conclusion is limited to this size and these tasks. Statements such as "not worth points in the hands of a 1.5B" describe this capacity and have to be re-measured at any other.
+**Why the base model stops at 1.5B.** The constraint comes first: on four 24 GB RTX 4090s, full-parameter RL with vLLM co-located on the same GPUs fits a 1.5B model and no more; 4B would need LoRA. Since the scale could not vary, it was treated as a constant and only the things that could vary were changed: same base model, same scale, one variable at a time, so that differences can be attributed. This is not a scaling study and not a small-model leaderboard; every conclusion is limited to this size and these tasks. Statements such as "not worth points in the hands of a 1.5B" describe this capacity and have to be re-measured at any other.
 
 **What came out.** Six regularities that run through the whole project, each with its own numbers:
 
@@ -807,7 +807,7 @@ Evaluation line: 800 tool-evaluation samples took 60 minutes on four GPUs, and 2
 
 ## 7. Limitations
 
-- **Scale.** Every experiment is fixed at one base-model size, 95M to 1.5B; nothing here says how the regularities change with scale. "Not worth points" and "cannot be installed" describe this capacity.
+- **Scale.** The hardware caps the base model at 1.5B: four 24 GB GPUs cannot hold full-parameter RL for anything larger. Every experiment therefore sits at one size, and nothing here says how the regularities change with scale; "not worth points" and "cannot be installed" describe this capacity.
 - **Model family.** All post-training experiments use a single family, Qwen2.5; conclusions may carry family-specific traits.
 - **No external baselines.** No comparison against other RL algorithms (PPO, RLOO) or off-the-shelf recipes (verl, TRL), and no alignment with published numbers for larger models; every comparison is an internal one on the same base model.
 - **Single runs.** The RL runs of ②-B and ③ were made once each, with no noise floor; ① and ②-A have two runs, differing by .003 to .031.
