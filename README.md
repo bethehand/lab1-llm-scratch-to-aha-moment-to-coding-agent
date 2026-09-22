@@ -1,8 +1,14 @@
+# LLM from scratch → the aha moment → a coding agent
+
+Fifteen experiments on four RTX 4090s: one variable at a time, predictions written before each run and reconciled after. Pretraining from scratch (95M / 201M), SFT, GRPO on GSM8K, chasing the R1 "aha moment" on Countdown, a stateful number-guessing environment, and a four-stage coding-agent curriculum (fix bugs → bundle bugs → write real modules → verify without tests). Full report with every setting, table, figure and the prediction ledger: **[English](https://<你的用户名>.github.io/lab1-llm-scratch-to-aha-moment-to-coding-agent/en/) · [中文](https://<你的用户名>.github.io/lab1-llm-scratch-to-aha-moment-to-coding-agent/zh/)**
+
+---
+
 # 从零预训练到 coding agent
 
 四张 RTX 4090 上的十五个实验：一次只变一个量，跑前写预测，跑完对账。
 
-**报告（含全部设置、数据、图、结论、预测台账）：** https://<你的用户名>.github.io/lab1-llm-scratch-to-aha-moment-to-coding-agent/  ← 开好 Pages 后把用户名填上
+**报告 / Report：** https://<你的用户名>.github.io/lab1-llm-scratch-to-aha-moment-to-coding-agent/ （[中文](https://<你的用户名>.github.io/lab1-llm-scratch-to-aha-moment-to-coding-agent/zh/) · [English](https://<你的用户名>.github.io/lab1-llm-scratch-to-aha-moment-to-coding-agent/en/)）← 开好 Pages 后把用户名填上
 
 ## 这个仓库有什么
 
