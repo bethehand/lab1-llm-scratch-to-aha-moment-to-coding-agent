@@ -37,3 +37,6 @@ venv/
 
 # 报告里的临时预览
 docs/tools/*.png
+
+# macOS 复制出来的重名文件
+docs/zh/index 2.md
