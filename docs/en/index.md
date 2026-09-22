@@ -17,7 +17,7 @@ Author: Qirun Li　·　Period: August 26 to September 22, 2026　·　Compiled 
 
 ## 0. One page
 
-**What was done.** Starting from Stanford CS336, pretrain two English models from scratch (95M, 201M) on four 4090s, do SFT, then move to RL: first reproduce GRPO on GSM8K, then use the Countdown number game to chase DeepSeek-R1's "aha moment" (顿悟), raising this task's pass@1 from 0.02 to 0.75, and to 0.98 with the expert exit (出口) open; then build the first stateful environment (number guessing); finally move to coding agents: bug fixing, bundling (拼包), writing real modules from scratch, and taking away the tests so the model has to verify itself, four stages in all.
+**What was done.** Studied Stanford CS336 and Stanford CS329A, then pretrained two English models from scratch (95M, 201M) on four 4090s, do SFT, then move to RL: first reproduce GRPO on GSM8K, then use the Countdown number game to chase DeepSeek-R1's "aha moment" (顿悟), raising this task's pass@1 from 0.02 to 0.75, and to 0.98 with the expert exit (出口) open; then build the first stateful environment (number guessing); finally move to coding agents: bug fixing, bundling (拼包), writing real modules from scratch, and taking away the tests so the model has to verify itself, four stages in all.
 
 **How.** Each experiment changes one variable; predictions are written down before the run and reconciled after it; every model reports two numbers, pass@1 (reliability) and pass@32 (ceiling); a cheating probe is run at every stage; the hit record of more than forty predictions is kept in the appendix.
 
