@@ -4,7 +4,6 @@ description: Four RTX 4090s, one person, four weeks, fifteen experiments: one va
 lang: en
 ---
 
-English · [中文](../zh/)
 
 # From pretraining from scratch to a coding agent
 

@@ -1,8 +1,11 @@
 title: "LLM from scratch → aha moment → coding agent"
 description: "Fifteen experiments on four RTX 4090s · 四张 4090 上的十五个实验"
-theme: jekyll-theme-minimal
-lang: zh-CN
+lang: en
 markdown: kramdown
+kramdown:
+  input: GFM
+  auto_ids: true
+  hard_wrap: false
 exclude:
   - tools
 baseurl: /lab1-llm-scratch-to-aha-moment-to-coding-agent

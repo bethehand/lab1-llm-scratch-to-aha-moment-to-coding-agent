@@ -4,7 +4,6 @@ description: 四张 RTX 4090、一个人、四周、十五个实验：一次只�
 lang: zh-CN
 ---
 
-[English](../en/) · 中文
 
 # 从零预训练到 coding agent
 
