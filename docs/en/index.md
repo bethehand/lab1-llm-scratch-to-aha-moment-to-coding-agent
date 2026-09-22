@@ -21,13 +21,17 @@ Author: Qirun Li　·　Period: August 26 to September 22, 2026　·　Compiled 
 
 **How.** Each experiment changes one variable; predictions are written down before the run and reconciled after it; every model reports two numbers, pass@1 (reliability) and pass@32 (ceiling); a cheating probe is run at every stage; the hit record of more than forty predictions is kept in the appendix.
 
+**Three definitions and one protocol first.** Support set: the set of solutions to which the model's sampling distribution assigns non-negligible probability; this report uses pass@k at large k as its proxy, pass@32 on the coding line and pass@64 on the Countdown line. Observation strength: strong observation means the environment runs the author-written tests at inference time and returns the verdict; weak observation means the environment provides no tests and the model can only write and run its own assertions. Sampling protocol: pass@1 is the mean over 8 samples per problem at temperature 1; pass@32 is the unbiased estimate from 32 samples per problem; 100 out-of-pool problems, 1σ about .03 to .04, and any difference smaller than that is read as flat.
+
+**Why the base model is fixed at 1.5B.** The base-model size is deliberately held constant so that the effects of SFT and RL can be separated from scale effects: same base model, same scale, one variable at a time, so that differences can be attributed. This is not a scaling study and not a small-model leaderboard; every conclusion is limited to this size and these tasks. Statements such as "not worth points in the hands of a 1.5B" describe this capacity and have to be re-measured at any other.
+
 **What came out.** Six regularities that run through the whole project, each with its own numbers:
 
 | Regularity | One sentence | Evidence |
 |---|---|---|
-| RL moves within the support set (支撑集) | pass@1 rises, the pass@k ceiling does not move; opening new paths (开路) happens only at the 1/k margin | GSM8K pass@64 is .980 for all three models; ②-B held-out pass@32 actually drops |
-| Three-stage division of labor | pretraining gives the parts (零件), SFT gives the procedure (流程), RL gives the preference (偏好) | 200M SFT "knowing when to stop ≠ knowing how to answer"; three arms: self-distillation = RL only, seeding (撒种) +.09 |
-| The shape of the scale (秤) decides what gets learned | process rewards get gamed (被钻); final-outcome reward only + pool screening (筛池) + anchor (锚) turns RL from learning bad habits into a safe small gain | Arm 3 grader gamed at step 126; Arm S, Conclusion ⑯ |
+| RL moves within the support set (支撑集) | pass@1 rises, the pass@k ceiling does not move; opening new paths (novel solution strategies that the base model almost never produced, 开路) happens only at the 1/k margin | GSM8K pass@64 is .980 for all three models; ②-B held-out pass@32 actually drops |
+| Three-stage division of labor | pretraining gives the parts (零件), SFT gives the procedure (流程), RL gives the preference (偏好) | 200M SFT "knowing when to stop ≠ knowing how to answer"; three arms (three training configurations compared from the same starting point, 三臂): self-distillation = RL only, seeding (撒种) +.09 |
+| The shape of the scale (秤) decides what gets learned | process rewards get gamed (被钻); final-outcome reward only + pool screening (batch filtering to problems with mixed success within a sampled group, 筛池) + KL anchor (a KL penalty that keeps the policy near the SFT model, 锚) turns RL from learning bad habits into a safe small gain | Arm 3 grader gamed at step 126; Arm S, Conclusion ⑯ |
 | The price of observation | same problems, same scale, only the tests taken away: SFT −.09, RL −.16, ceiling −.06, and the whole price falls on the fix loop (改循环) | Stage ③ |
 | Fixing is a part, not a habit | the improved rate per fix round (改一轮) is 10 to 20%, unchanged across three settings, before and after SFT, before and after RL | ②-A, ②-B, ③ |
 | Opening new paths = support-set density × feedback density × sampling budget | the denser the feedback, the weaker the prior that can still open a path | Countdown cannot walk blind and needs seeding; number guessing grows binary search from 4% with pure RL |
@@ -63,7 +67,7 @@ How to read the three figures: see the end of §3.10, §3.4 and §3.15.
 | 11 | 09-11 | E number guessing, three arms, the first stateful environment | hf_armA | pure RL .63 / curriculum .84 / seeding .976 | ⑱ explicit state comes from the textbook (教材) |
 | 12 | 09-11 to 09-13 | ① short-horizon strong observation: bug fixing | Qwen2.5-Coder-1.5B | SFT +.55, RL +.12, pass@32 unchanged | ⑲ ⑳ |
 | 13 | 09-14 to 09-15 | ②-A long-horizon strong observation 1: independent bundling | same | p^K; file-level pass@32 +.02 | ㉑ to ㉖ |
-| 14 | 09-15 to 09-16 | ②-B long-horizon strong observation 2: exercism from scratch | same | SFT .329 → RL .446; held-out pass@32 .600 → .533 | ㉗ gain in the first version (首版), problem binding (绑题), tail cutting (削尾巴) |
+| 14 | 09-15 to 09-16 | ②-B long-horizon strong observation 2: exercism from scratch | same | SFT .329 → RL .446; held-out pass@32 .600 → .533 | ㉗ gain in the first version (首版), problem binding (绑题), tail cutting (held-out pass@32 falls while pass@1 rises, 削尾巴) |
 | 15 | 09-17 | ③ long-horizon weak observation: write your own tests | same | SFT .186 → RL .282; strong-room (强房间) control .446 | ㉘ the price of observation |
 
 ### 1.2 Chain of motivation: each next step is the previous step's debt
@@ -801,7 +805,20 @@ Evaluation line: 800 tool-evaluation samples took 60 minutes on four GPUs, and 2
 
 ---
 
-## 7. Debts and next steps
+## 7. Limitations
+
+- **Scale.** Every experiment is fixed at one base-model size, 95M to 1.5B; nothing here says how the regularities change with scale. "Not worth points" and "cannot be installed" describe this capacity.
+- **Model family.** All post-training experiments use a single family, Qwen2.5; conclusions may carry family-specific traits.
+- **No external baselines.** No comparison against other RL algorithms (PPO, RLOO) or off-the-shelf recipes (verl, TRL), and no alignment with published numbers for larger models; every comparison is an internal one on the same base model.
+- **Single runs.** The RL runs of ②-B and ③ were made once each, with no noise floor; ① and ②-A have two runs, differing by .003 to .031.
+- **Step count.** 150 steps was a fixed choice with no sensitivity analysis; only ③ has a sigmoid fit (saturation by step 75).
+- **Evaluation size.** 100 out-of-pool problems × 8 samples, 1σ about .03 to .04; the held-out set has only 30 problems.
+- **First-version protocol.** In the strong room the first version is scored on the visible tests, an upper bound on the full-scale value.
+- **Textbook confound.** The SFT-③ vs SFT-②-B comparison mixes two teacher prompts; the main evidence is the same-model room-switch subtraction.
+- **A design flaw in the teacher's assertions.** The weak-mode teacher prompt required "at least 6 assertions", and the conjunction inflated false positives; part of the price of weak observation is due to it.
+- **Data licensing.** The teacher trajectories were generated with DeepSeek; they are not released with this report, and their terms of service must be checked before any release.
+
+## 8. Debts and next steps
 
 **Debts, ordered by cheapness.**
 

@@ -15,7 +15,33 @@ Fifteen experiments on four RTX 4090s: one variable at a time, predictions writt
 | Coding, four stages | SFT then RL on Qwen2.5-Coder-1.5B | RL lifts pass@1 by .10 to .18 at every stage; pass@32 ceilings barely move; on held-out problems RL cuts the tail |
 | Price of observation | same problems, same hidden tests, only the visible tests removed | SFT −.09, RL −.16, ceiling −.06; the whole price lands in the fix loop after the first version |
 
+![Countdown ladder](docs/assets/en/countdown_ladder.svg)
+
+![GSM8K pass@k](docs/assets/en/gsm8k_passk.svg)
+
+![The price of observation](docs/assets/en/observation_price.svg)
+
 Six regularities recur with their own numbers: RL reweights inside the support set; pretraining gives the parts, SFT the procedure, RL the preference; the shape of the reward decides what gets learned; the price of observation; fixing is a part, not a habit; path-opening = support density × feedback density × sampling budget. All conclusions are limited to the model sizes (95M to 1.5B) and tasks used here.
+
+## Related work
+
+- **DeepSeek-R1** (2025): cold-start SFT followed by GRPO with verifiable rewards, and the "aha moment"; our Countdown line reproduces the cold-start necessity and the functional form of the aha moment at 1.5B.
+- **Yue et al. 2025**, *Does RL really incentivize reasoning capacity beyond the base model?*: RL raises pass@1 but not large-k pass@k; we reproduce this independently on five lines at 1.5B and add the "support set is defined by the training-time sample count" refinement and the held-out tail cutting.
+- **GRPO / DAPO**: group-relative advantages without a critic; dynamic sampling of mixed-success groups. Our trainer implements both; dynamic sampling bought speed and gradient utilization but no score (Conclusion ⑲).
+
+## Install
+
+```bash
+git clone https://github.com/bethehand/lab1-llm-scratch-to-aha-moment-to-coding-agent
+cd lab1-llm-scratch-to-aha-moment-to-coding-agent
+python3 -m venv ~/vllm_env && source ~/vllm_env/bin/activate
+pip install -r requirements-vllm.txt          # vLLM 0.8.5.post1, transformers 4.51.3, torch, bitsandbytes
+export DEEPSEEK_API_KEY=...                   # only for the DeepSeek teacher and the ask-expert tool
+```
+
+Base models come from Hugging Face: `Qwen/Qwen2.5-1.5B` (Countdown line), `Qwen/Qwen2.5-1.5B-Instruct` (GSM8K), `Qwen/Qwen2.5-Coder-1.5B` (coding line). `download_qwen.py` fetches the Instruct model; `export_hf.py --out hf_base` writes a base model into the local HF-directory format the evaluators read.
+
+**Where `--init <ckpt>` comes from.** Every RL run starts from an SFT checkpoint produced by `sft_qwen.py`, saved as `out_<name>/ckpt.pt`. The number-guessing run in the README started from the Countdown line's Arm A checkpoint. Trained checkpoints are not in this repository (they are 3 GB each); a Hugging Face release is on the to-do list, until then the SFT steps in the commands below regenerate them in minutes.
 
 ## What is in this repository
 

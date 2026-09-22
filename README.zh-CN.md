@@ -15,7 +15,33 @@
 | 编程四级 | Qwen2.5-Coder-1.5B 上先 SFT 再 RL | 每级 RL 抬 pass@1 .10 到 .18；pass@32 天花板几乎不动；留出题上 RL 削尾巴 |
 | 观测的价格 | 同题同隐藏测试，只拿走可见测试 | SFT −.09、RL −.16、天花板 −.06；价全落在首版之后的改循环 |
 
+![Countdown 阶梯](docs/assets/countdown_ladder.svg)
+
+![GSM8K pass@k](docs/assets/gsm8k_passk.svg)
+
+![观测的价格](docs/assets/observation_price.svg)
+
 六条规律反复出现，各有自己的数：RL 在支撑集内挪；预训练给零件、SFT 给流程、RL 给偏好；秤的形状决定学到什么；观测的价格；改是零件不是习惯；开路 = 支撑集密度 × 反馈密度 × 采样预算。所有结论限定在这里用到的模型规模（95M 到 1.5B）和任务上。
+
+## 相关工作
+
+- **DeepSeek-R1**（2025）：冷启动 SFT 加可验证奖励的 GRPO，以及「顿悟」；我们的 Countdown 线在 1.5B 上复现了冷启动的必要性和顿悟的功能形态。
+- **Yue 等 2025**，*Does RL really incentivize reasoning capacity beyond the base model?*：RL 抬 pass@1 不抬大 k 的 pass@k；我们在五条线上独立复现，并补了「支撑集按训练时采样次数定义」和留出题削尾巴两条。
+- **GRPO / DAPO**：不用 critic 的组内相对优势；动态采样只留有对有错的组。训练器两样都实现了；动态采样买到速度和梯度利用率，没买到分数（定论 ⑲）。
+
+## 安装
+
+```bash
+git clone https://github.com/bethehand/lab1-llm-scratch-to-aha-moment-to-coding-agent
+cd lab1-llm-scratch-to-aha-moment-to-coding-agent
+python3 -m venv ~/vllm_env && source ~/vllm_env/bin/activate
+pip install -r requirements-vllm.txt          # vLLM 0.8.5.post1、transformers 4.51.3、torch、bitsandbytes
+export DEEPSEEK_API_KEY=...                   # 只有 DeepSeek 老师和问专家工具用到
+```
+
+底模从 Hugging Face 取：`Qwen/Qwen2.5-1.5B`（Countdown 线）、`Qwen/Qwen2.5-1.5B-Instruct`（GSM8K）、`Qwen/Qwen2.5-Coder-1.5B`（编程线）。`download_qwen.py` 拉 Instruct 版；`export_hf.py --out hf_base` 把底模写成评测脚本读的本地 HF 目录格式。
+
+**`--init <ckpt>` 从哪来。** 每次 RL 都从 `sft_qwen.py` 产出的 SFT 检查点起步，存在 `out_<名字>/ckpt.pt`。README 里猜数字那条用的起点是 Countdown 线臂 A 的检查点。训练好的检查点不在仓库里（每个 3 GB），Hugging Face 发布在待办里；在那之前，下面命令里的 SFT 步骤几分钟就能重新生成。
 
 ## 这个仓库有什么
 
