@@ -25,7 +25,7 @@ STRONG, WEAK, TINT, SFT_C, RL_C = "#1F5F8B", "#B45A1C", "#BFD6E8", "#8FA9C2", "#
 # 中英对照：键是中文原文，值是英文
 T = {
 
-    "有测试可跑\n（原来的环境）": "Tests available\n(original setting)", "同样两个模型\n拿走测试": "Same two models,\ntests removed", "专门为没有测试\n重新训练": "Retrained for the\nno-test setting",
+    "实验 ②-B 训出的两个模型\n在原环境考：有测试可跑": "The two models from experiment ②-B\ntested in their own setting: tests available", "同样这两个模型\n拿走测试再考": "The same two models\ntested with the tests removed", "实验 ③ 训出的两个模型\n专门为没有测试的环境训练": "The two models from experiment ③\ntrained for the no-test setting",
     "只做 SFT": "SFT only", "SFT 后再 RL": "SFT then RL", "改稿 ": "fixing ", "通过率（100 道题，每题做 8 次，取平均）": "pass rate (100 problems, 8 attempts each, averaged)",
     "第一稿就全对的比例": "first draft already passes", "改完交卷后全对的比例": "final submission passes",
     "有测试和没有测试：同一批模型的成绩差在哪": "With tests vs. without: where the score is lost",
@@ -141,25 +141,25 @@ hbar_ladder([
 # 3 观测的价格：每个模型两根，第一稿 vs 最终交卷，白话标签
 def obs_price():
     groups = [
-        ("有测试可跑\n（原来的环境）", [("只做 SFT", .251, .329), ("SFT 后再 RL", .400, .446)], STRONG, TINT),
-        ("同样两个模型\n拿走测试", [("只做 SFT", .248, .240), ("SFT 后再 RL", .327, .295)], WEAK, "#F0D2B8"),
-        ("专门为没有测试\n重新训练", [("只做 SFT", .235, .186), ("SFT 后再 RL", .302, .282)], WEAK, "#F0D2B8"),
+        ("实验 ②-B 训出的两个模型\n在原环境考：有测试可跑", [("只做 SFT", "SFT-②-B", .251, .329), ("SFT 后再 RL", "RL-②-B", .400, .446)], STRONG, TINT),
+        ("同样这两个模型\n拿走测试再考", [("只做 SFT", "SFT-②-B", .248, .240), ("SFT 后再 RL", "RL-②-B", .327, .295)], WEAK, "#F0D2B8"),
+        ("实验 ③ 训出的两个模型\n专门为没有测试的环境训练", [("只做 SFT", "SFT-③", .235, .186), ("SFT 后再 RL", "RL-③", .302, .282)], WEAK, "#F0D2B8"),
     ]
     fig, ax = plt.subplots(figsize=(9.6, 4.9)); w = 0.36; x = 0.0; centers = []
     for glabel, models, dark, light in groups:
         gx = []
-        for mlabel, first, final in models:
+        for mlabel, code, first, final in models:
             ax.bar(x - w/2, first, w, color=light, edgecolor=dark, linewidth=0.6)
             ax.bar(x + w/2, final, w, color=dark)
             ax.text(x - w/2, first + .012, f"{first:.2f}", ha="center", fontsize=9.5, color=INK)
             ax.text(x + w/2, final + .012, f"{final:.2f}", ha="center", fontsize=9.5, color=INK, fontweight="bold")
             d = final - first
             ax.text(x, max(first, final) + .048, (_("改稿 ") + f"{d:+.2f}"), ha="center", fontsize=9.5, color=("#2E7D4F" if d > 0 else "#B3261E"), fontweight="600")
-            ax.text(x, -.03, _(mlabel), ha="center", va="top", fontsize=9.5, color=INK)
+            ax.text(x, -.03, _(mlabel) + "\n" + code, ha="center", va="top", fontsize=9.5, color=INK, linespacing=1.3)
             gx.append(x); x += 1.0
         centers.append((sum(gx) / len(gx), glabel)); x += 0.55
     for cx, glabel in centers:
-        ax.text(cx, -.105, _(glabel), ha="center", va="top", fontsize=10, color=MUTED, linespacing=1.3)
+        ax.text(cx, -.135, _(glabel), ha="center", va="top", fontsize=10, color=MUTED, linespacing=1.3)
     ax.set_xticks([]); ax.set_ylim(0, .56); ax.set_xlim(-0.7, x - 0.55 - 0.3)
     ax.yaxis.grid(True, color=GRID); ax.set_axisbelow(True); ax.spines["bottom"].set_visible(False)
     ax.set_ylabel(_("通过率（100 道题，每题做 8 次，取平均）"), color=MUTED)
@@ -168,7 +168,7 @@ def obs_price():
               loc="upper right", fontsize=9, frameon=False)
     ax.set_title(_("有测试和没有测试：同一批模型的成绩差在哪"), loc="left", fontsize=13, pad=26)
     fig.text(0.125, 0.905, _("第一稿的通过率几乎一样；有测试时改稿加分，没有测试时改稿反而减分"), fontsize=10, color=MUTED)
-    fig.text(0.01, -0.15, _("左边一组的第一稿按模型能看到的那部分测试判定，是上界。RL 都是在 SFT 之后做的。"), fontsize=9, color=MUTED)
+    fig.text(0.01, -0.19, _("左边一组的第一稿按模型能看到的那部分测试判定，是上界。RL 都是在 SFT 之后做的。"), fontsize=9, color=MUTED)
     save(fig, "observation_price.svg")
 obs_price()
 
