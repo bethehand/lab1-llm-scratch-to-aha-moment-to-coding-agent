@@ -19,6 +19,8 @@ Fifteen experiments on four RTX 4090s: one variable at a time, predictions writt
 
 ![The price of observation](docs/assets/en/observation_price.svg)
 
+Re-measured on 2026-10-08 with the benchmark script on the same machine: RL −.145 (recorded −.151), SFT −.139 (recorded −.089); the stage-③ models, trained without tests, gain nothing when tests are handed back (`experiments/results/bench_2026-10-08_gs01/`).
+
 **Rewriting the reward to police the process.** Two attempts, both gamed: the first zeroed every penalty by changing its output format while accuracy stayed flat; the second made every process metric better and every real result worse. Punishing mistakes is punishing attempts.
 
 ![Three graders](docs/assets/en/graders.svg)

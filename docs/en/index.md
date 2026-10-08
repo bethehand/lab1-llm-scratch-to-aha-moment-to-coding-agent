@@ -713,6 +713,17 @@ Together: verification = execution + expected values. Tests supply expected valu
 
 ---
 
+**Re-evaluation, 2026-10-08.** After the report went up, the four coding-line checkpoints were each evaluated again on the same machine with the repository's `bench_observation_price.py`: the same 100 training problems, 8 samples each, temperature 1, one round with the visible tests available and one with them removed. The summaries are in the repository under `experiments/results/bench_2026-10-08_gs01/`.
+
+| Model | With tests | Tests removed | Price | Recorded in the report |
+|---|---|---|---|---|
+| SFT-②-B | .343 | .204 | −.139 | .329 / .240 / −.089 |
+| RL-②-B | .459 | .314 | −.145 | .446 / .295 / −.151 |
+| SFT-③ | .210 | .196 | −.014 | weak observation .186 |
+| RL-③ | .265 | .296 | +.031 | weak observation .282 |
+
+Three readings. First, all six recorded numbers reproduce within ±.04: the RL price is −.15 both times, the SFT price falls between −.09 and −.14, and that is the noise of a single evaluation run. Second, the two stage-③ models gain nothing when put back into the room with tests, and RL-③ even drops slightly: they were trained in an environment without tests, they do not know how to use the test tool when handed it, and their submission rate falls from .42 to .26. Taken together this is a pair: a model trained to use tests loses when they are taken away; a model never trained to use them gains nothing when they are given. The value of an observation depends on whether the model was trained to use it. Third, this run used the public code; anyone can run the same command on their own model and add a point to this figure.
+
 ## 4. Cross-cutting conclusions
 
 The fifteen experiments' individual conclusions carry twenty-eight numbered items; here they are compressed by theme into nine main lines, each followed by its chain of evidence.
@@ -823,6 +834,8 @@ Evaluation line: 800 tool-evaluation samples took 60 minutes on four GPUs, and 2
 - **Textbook confound.** The SFT-③ vs SFT-②-B comparison mixes two teacher prompts; the main evidence is the same-model room-switch subtraction.
 - **A design flaw in the teacher's assertions.** The weak-mode teacher prompt required "at least 6 assertions", and the conjunction inflated false positives; part of the price of weak observation is due to it.
 - **Data licensing.** The teacher trajectories were generated with DeepSeek; they are not released with this report, and their terms of service must be checked before any release.
+
+- **Re-evaluation.** On 2026-10-08 the four coding-line checkpoints were re-evaluated with the repository's benchmark script; the recorded numbers reproduce within ±.04, and the SFT price of observation measures between −.09 and −.14 across the two runs; see the end of §3.15.
 
 ## 8. Debts and next steps
 
