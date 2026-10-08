@@ -81,10 +81,12 @@ Scripts sit flat in the root and import each other by file name. Do not move the
 
 ## Environment
 
-Two virtual environments were used on the training machine (exact versions in `requirements-*.txt`):
+Three virtual environments were used on the training machine; the `requirements-*.txt` files are `pip freeze` outputs from it (Ubuntu, Python 3.10.12, CUDA 12.4):
 
-- `vllm_env`: vLLM 0.8.5.post1, transformers 4.51.3. Everything that touches vLLM runs here: the trainer, `eval_*`, `chat_*_vllm`, `export_hf`, `tests`, `make_*_demos`.
-- `train_env`: torch 2.6, transformers 5.x. Pure HF training (pretraining; `sft_qwen.py` runs in either).
+- `requirements-vllm.txt`: vLLM 0.8.5.post1, transformers 4.51.3, torch 2.6.0. Everything that touches vLLM runs here: the trainer, `eval_*`, `bench_observation_price.py`, `chat_*_vllm`, `export_hf`, `make_*_demos`.
+- `requirements-train.txt`: torch 2.6.0, transformers 5.16.1. `sft_qwen.py` runs in either this or the vLLM environment.
+- `requirements-pretrain.txt`: the from-scratch pretraining environment (`train.py`, `prepare_data.py`, `evaluate.py`).
+- `requirements-cpu.txt`: nothing beyond the standard library for the environments, graders, harness and tests; `numpy` and `matplotlib` are optional extras.
 
 The DeepSeek key is read only from the environment variable `DEEPSEEK_API_KEY`. Never write it into a file.
 

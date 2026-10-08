@@ -81,10 +81,12 @@ export DEEPSEEK_API_KEY=...                   # 只有 DeepSeek 老师和问专�
 
 ## 环境
 
-训练机上用两个 venv，版本见 `requirements-*.txt`：
+训练机上用三个 venv，`requirements-*.txt` 是从训练机上 `pip freeze` 出来的（Ubuntu，Python 3.10.12，CUDA 12.4）：
 
-- `vllm_env`：vLLM 0.8.5.post1、transformers 4.51.3。凡碰 vLLM 的脚本一律在这里跑：训练器、`eval_*`、`chat_*_vllm`、`export_hf`、`tests`、`make_*_demos`。
-- `train_env`：torch 2.6、transformers 5.x。纯 HF 训练（预训练；`sft_qwen.py` 两边都能跑）。
+- `requirements-vllm.txt`：vLLM 0.8.5.post1、transformers 4.51.3、torch 2.6.0。凡碰 vLLM 的脚本一律在这里跑：训练器、`eval_*`、`bench_observation_price.py`、`chat_*_vllm`、`export_hf`、`make_*_demos`。
+- `requirements-train.txt`：torch 2.6.0、transformers 5.16.1。`sft_qwen.py` 在这里或 vLLM 环境都能跑。
+- `requirements-pretrain.txt`：从零预训练的环境（`train.py`、`prepare_data.py`、`evaluate.py`）。
+- `requirements-cpu.txt`：环境、秤、harness 和单测只用标准库；`numpy`、`matplotlib` 是可选项。
 
 DeepSeek 密钥只从环境变量 `DEEPSEEK_API_KEY` 读，任何文件里都不要写。
 
