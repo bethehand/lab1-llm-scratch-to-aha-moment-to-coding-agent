@@ -1,0 +1,38 @@
+{
+ "name": "hf_sft_ex",
+ "strong": {
+  "n_problems": 100,
+  "samples": 8,
+  "obs": "strong",
+  "name": "hf_sft_ex",
+  "pass@1": 0.3425,
+  "pass@8": 0.52,
+  "pass@32": null,
+  "first_draft": 0.2625,
+  "fake_obs": 0.0025,
+  "submitted": 0.47375
+ },
+ "weak": {
+  "n_problems": 100,
+  "samples": 8,
+  "obs": "weak",
+  "name": "hf_sft_ex",
+  "pass@1": 0.20375,
+  "pass@8": 0.45,
+  "pass@32": null,
+  "first_draft": 0.21625,
+  "fake_obs": 0.02,
+  "submitted": 0.6975
+ },
+ "price_pass1": -0.13875000000000004,
+ "reference": {
+  "SFT (1.5B, this repo)": [
+   0.329,
+   0.24
+  ],
+  "SFT+RL (1.5B, this repo)": [
+   0.446,
+   0.295
+  ]
+ }
+}

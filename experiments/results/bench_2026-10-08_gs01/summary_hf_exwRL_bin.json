@@ -1,0 +1,38 @@
+{
+ "name": "hf_exwRL_bin",
+ "strong": {
+  "n_problems": 100,
+  "samples": 8,
+  "obs": "strong",
+  "name": "hf_exwRL_bin",
+  "pass@1": 0.265,
+  "pass@8": 0.48,
+  "pass@32": null,
+  "first_draft": 0.28625,
+  "fake_obs": 0.025,
+  "submitted": 0.255
+ },
+ "weak": {
+  "n_problems": 100,
+  "samples": 8,
+  "obs": "weak",
+  "name": "hf_exwRL_bin",
+  "pass@1": 0.29625,
+  "pass@8": 0.51,
+  "pass@32": null,
+  "first_draft": 0.30875,
+  "fake_obs": 0.00125,
+  "submitted": 0.4225
+ },
+ "price_pass1": 0.03125,
+ "reference": {
+  "SFT (1.5B, this repo)": [
+   0.329,
+   0.24
+  ],
+  "SFT+RL (1.5B, this repo)": [
+   0.446,
+   0.295
+  ]
+ }
+}
