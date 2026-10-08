@@ -40,3 +40,6 @@ docs/tools/*.png
 
 # macOS 复制出来的重名文件
 docs/zh/index 2.md
+
+# benchmark output directories (raw records can be large)
+bench_*/

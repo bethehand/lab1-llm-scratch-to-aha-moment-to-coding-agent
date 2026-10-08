@@ -10,16 +10,20 @@ Fifteen experiments on four RTX 4090s: one variable at a time, predictions writt
 |---|---|---|
 | Pretraining | 95M on 1.5B tokens, 201M on 10B tokens (FineWeb-Edu) | perplexity 30.2 / 18.1; beats the Chinchilla formula, loses to GPT-2 small by 0.15 nats |
 | GSM8K GRPO | pass@1 vs pass@64, Qwen2.5-1.5B-Instruct | pass@1 +.21, pass@64 unchanged at .980: RL reorders, it does not create |
-| Countdown (4 numbers) | pass@1 lifted arm by arm on Qwen2.5-1.5B Base | .02 → .39 (RL) → .56 (seeded SFT+RL) → .71 (calculator) → .75 (subtractive scale + anchor) → .98 with an expert on call |
+| Countdown (4 numbers) | pass@1 lifted arm by arm on Qwen2.5-1.5B Base | .02 → .39 (RL) → .56 (seeded SFT+RL) → .71 (calculator) → .75 (penalty-free reward + anchor) → .98 with an expert on call |
 | Number guessing | first stateful environment, three arms | pure RL grows bisection from a 4% seed (.63); 200 seeded demos beat both RL arms (.976); N=1000 generalisation .14 vs .71 |
 | Coding, four stages | SFT then RL on Qwen2.5-Coder-1.5B | RL lifts pass@1 by .10 to .18 at every stage; pass@32 ceilings barely move; on held-out problems RL cuts the tail |
 | Price of observation | same problems, same hidden tests, only the visible tests removed | SFT −.09, RL −.16, ceiling −.06; the whole price lands in the fix loop after the first version |
 
-![Countdown ladder](docs/assets/en/countdown_ladder.svg)
-
-![GSM8K pass@k](docs/assets/en/gsm8k_passk.svg)
+**The price of observation.** Same models, same hidden tests; only the visible tests are taken away at deployment. The RL-trained coding agent loses 16 points, all of it in the fix loop after the first draft. Measure it on your own model with `bench_observation_price.py` (below).
 
 ![The price of observation](docs/assets/en/observation_price.svg)
+
+**Rewriting the reward to police the process.** Two attempts, both gamed: the first zeroed every penalty by changing its output format while accuracy stayed flat; the second made every process metric better and every real result worse. Punishing mistakes is punishing attempts.
+
+![Three graders](docs/assets/en/graders.svg)
+
+The other figures (Countdown ladder, GSM8K pass@k, coding ladder, number guessing, p^K) are in the [report](https://bethehand.github.io/lab1-llm-scratch-to-aha-moment-to-coding-agent/en/).
 
 Six regularities recur with their own numbers: RL reweights inside the support set; pretraining gives the parts, SFT the procedure, RL the preference; the shape of the reward decides what gets learned; the price of observation; fixing is a part, not a habit; path-opening = support density × feedback density × sampling budget. All conclusions are limited to the model sizes (95M to 1.5B) and tasks used here.
 
@@ -29,11 +33,22 @@ Six regularities recur with their own numbers: RL reweights inside the support s
 - **Yue et al. 2025**, *Does RL really incentivize reasoning capacity beyond the base model?*: RL raises pass@1 but not large-k pass@k; we reproduce this independently on five lines at 1.5B and add the "support set is defined by the training-time sample count" refinement and the held-out tail cutting.
 - **GRPO / DAPO**: group-relative advantages without a critic; dynamic sampling of mixed-success groups. Our trainer implements both; dynamic sampling bought speed and gradient utilization but no score (Conclusion ⑲).
 
-## Install
+## Quick start
+
+**No GPU, five minutes.** The environments, graders, harness and tests are plain Python (3.10+, standard library only):
 
 ```bash
 git clone https://github.com/bethehand/lab1-llm-scratch-to-aha-moment-to-coding-agent
 cd lab1-llm-scratch-to-aha-moment-to-coding-agent
+make test     # six self-checks: fake model + real sandbox (also run by CI on every push)
+make smoke    # generate Countdown problems, run a scripted policy through the harness, watch a hard-coded cheat get caught by the hidden test
+```
+
+**With GPUs.** The headline experiments (coding stages ① to ③, Countdown Arm S, number guessing) each have a script under `experiments/` that runs them end to end (problems → teacher demos → SFT → RL → evaluation) and starts with the numbers recorded in the lab log, so a rerun can be reconciled against them. `bench_observation_price.py --hf-dir <model>` measures the price of observation on any Hugging Face model in about an hour on one GPU. See `experiments/README.md`.
+
+## Install (GPU)
+
+```bash
 python3 -m venv ~/vllm_env && source ~/vllm_env/bin/activate
 pip install -r requirements-vllm.txt          # vLLM 0.8.5.post1, transformers 4.51.3, torch, bitsandbytes
 export DEEPSEEK_API_KEY=...                   # only for the DeepSeek teacher and the ask-expert tool
@@ -49,15 +64,17 @@ Base models come from Hugging Face: `Qwen/Qwen2.5-1.5B` (Countdown line), `Qwen/
 |---|---|---|
 | Problem builders | `mutate.py` `collect_exercism.py` `collect_mbpp_weak.py` `countdown.py` `guess_env.py` | problems with ground truth, generated without limit |
 | Environments | `code_env.py` `pkg_env.py` `ex_env.py` `guess_env.py` | the four-method interface: stops / fake_tags / step / score |
-| Sandbox and scale | inside the environments, `strict_score.py` | subprocess isolation, five defenses, hidden tests, terminal-only reward |
+| Sandbox and grader | inside the environments, `strict_score.py` | subprocess isolation, five defenses, hidden tests, terminal-only reward |
 | Harness | `harness.py` (sync and async), `calc_tool_vllm.py` (HF / vLLM backends) | stop → environment → inject → continue; injected spans are masked |
 | Trainer | `grpo_tool_mp_vllm.py` | four processes, vLLM co-located on the training GPUs, weights pushed every step, dynamic sampling, chunked log-probs, KL anchor, per-task branches, dashboard |
 | SFT | `sft_qwen.py` | loss on the response only; injected observations labelled −100 |
-| Teachers | `enum_traces.py` `make_*_demos.py` `deepseek_tool.py` | program teacher and DeepSeek teacher; demonstrations kept only if they pass the scale |
+| Teachers | `enum_traces.py` `make_*_demos.py` `deepseek_tool.py` | program teacher and DeepSeek teacher; demonstrations kept only if they pass the grader |
 | Evaluation | `eval_*.py` `pass_k.py` `baseline_*.py` `compare_*.py` | pass@1 at ×8, pass@32 at ×32, behavioural readouts, cheating probes |
 | Chat | `chat_*_vllm.py` | raw conversations to inspect model behaviour |
 | Pretraining | `config.py` `model.py` `train.py` `prepare_data.py` `estimate.py` `evaluate.py` | 95M / 201M from scratch |
-| Tests | `tests/` | fake model + real sandbox |
+| Tests | `tests/`, `make test` | fake model + real sandbox; CI runs them on every push |
+| Reproduction | `experiments/` | one script per experiment, with the recorded numbers to reconcile against; `smoke_cpu.py` needs no GPU |
+| Benchmark | `bench_observation_price.py` | the price of observation on any HF model: same problems, same hidden tests, with and without visible tests |
 | Lab notebook | `PLAN.md` | the raw record (Chinese, ~11,000 lines); every number in the report can be traced back to it |
 
 Scripts sit flat in the root and import each other by file name. Do not move them.
@@ -77,23 +94,25 @@ Number guessing, one of the three arms, about 35 minutes on four 4090s:
 
 ```bash
 source ~/vllm_env/bin/activate
-torchrun --nproc_per_node=4 grpo_tool_mp_vllm.py --task guess --init <starting ckpt.pt> --steps 150 -k 16 --beta 0.02 --engine vllm --out out_guess
-python3 export_hf.py --ckpt out_guess/ckpt.pt --out hf_guess      # ckpt.pt → HF directory
+torchrun --nproc_per_node=4 grpo_tool_mp_vllm.py --task guess --init <starting ckpt> --ref-init <starting ckpt> --steps 150 -k 16 --beta 0.02 --engine vllm --out out_guess
+python3 export_hf.py --ckpt out_guess/ckpt_latest.pt --out hf_guess      # the trainer writes ckpt_latest.pt / ckpt_best.pt; SFT writes ckpt.pt
 python3 eval_guess.py --hf-dir hf_guess -n 100 -s 8 --out guess_eval.json
 ```
 
-Stage ①, bug fixing, about two hours:
+Stage ①, bug fixing, about two hours (the full version with probes, pass@32, strict re-scoring and the cheating probe is `experiments/stage1_bugfix.sh`):
 
 ```bash
+python3 export_hf.py --model Qwen/Qwen2.5-Coder-1.5B --out hf_coder_1.5b
 python3 mutate.py --data data_code.json --out data/code_bugs.json
 python3 make_code_demos.py --bugs data/code_bugs.json --out sft_code.jsonl
-torchrun --nproc_per_node=4 sft_qwen.py --data sft_code.jsonl --out out_sft_code
-torchrun --nproc_per_node=4 grpo_tool_mp_vllm.py --task code --init out_sft_code/ckpt.pt --steps 150 --engine vllm --dyn-sample 0.5 --out out_codeRL
-python3 export_hf.py --ckpt out_codeRL/ckpt.pt --out hf_codeRL
-python3 eval_code.py --hf-dir hf_codeRL --data data/code_bugs.json -n 100 -s 8 --out code_eval.json
+torchrun --nproc_per_node=4 sft_qwen.py --model hf_coder_1.5b --data sft_code.jsonl --out out_sft_code --max-len 2048
+torchrun --nproc_per_node=4 grpo_tool_mp_vllm.py --task code --model hf_coder_1.5b --init out_sft_code/ckpt.pt --ref-init out_sft_code/ckpt.pt \
+    --steps 150 --beta 0.02 --max-new 1024 --eval-n 80 --dyn-sample 0.5 --engine vllm --out out_codeRL
+python3 export_hf.py --model hf_coder_1.5b --ckpt out_codeRL/ckpt_latest.pt --out hf_codeRL
+python3 eval_code.py --hf-dir hf_codeRL --model hf_coder_1.5b --data data/code_bugs.json -n 100 -s 8 --out code_eval.json
 ```
 
-The docstring at the top of each script is the authority on its arguments.
+The docstring at the top of each script is the authority on its arguments; the trainer's defaults differ from the recipe used here (`--beta`, `--max-new`, `--engine`), so pass them explicitly as above.
 
 ## Data and licenses
 

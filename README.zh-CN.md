@@ -15,11 +15,15 @@
 | 编程四级 | Qwen2.5-Coder-1.5B 上先 SFT 再 RL | 每级 RL 抬 pass@1 .10 到 .18；pass@32 天花板几乎不动；留出题上 RL 削尾巴 |
 | 观测的价格 | 同题同隐藏测试，只拿走可见测试 | SFT −.09、RL −.16、天花板 −.06；价全落在首版之后的改循环 |
 
-![Countdown 阶梯](docs/assets/countdown_ladder.svg)
-
-![GSM8K pass@k](docs/assets/gsm8k_passk.svg)
+**观测的价格。** 同一批模型、同一套隐藏测试，部署时只拿走可见测试：RL 训出的编程 agent 掉 16 个点，全掉在第一稿之后的改稿循环里。用 `bench_observation_price.py` 可以在你自己的模型上量这个数（见下）。
 
 ![观测的价格](docs/assets/observation_price.svg)
+
+**改奖励公式去管过程。** 两次都被钻：第一次换个写法让罚项全归零、正确率没动；第二次过程指标全好、真实成绩全差。罚错误等于罚尝试。
+
+![三版秤](docs/assets/graders.svg)
+
+其余图（Countdown 阶梯、GSM8K pass@k、编程四级、猜数字、p^K）在[报告](https://bethehand.github.io/lab1-llm-scratch-to-aha-moment-to-coding-agent/zh/)里。
 
 六条规律反复出现，各有自己的数：RL 在支撑集内挪；预训练给零件、SFT 给流程、RL 给偏好；秤的形状决定学到什么；观测的价格；改是零件不是习惯；开路 = 支撑集密度 × 反馈密度 × 采样预算。所有结论限定在这里用到的模型规模（95M 到 1.5B）和任务上。
 
@@ -29,11 +33,22 @@
 - **Yue 等 2025**，*Does RL really incentivize reasoning capacity beyond the base model?*：RL 抬 pass@1 不抬大 k 的 pass@k；我们在五条线上独立复现，并补了「支撑集按训练时采样次数定义」和留出题削尾巴两条。
 - **GRPO / DAPO**：不用 critic 的组内相对优势；动态采样只留有对有错的组。训练器两样都实现了；动态采样买到速度和梯度利用率，没买到分数（定论 ⑲）。
 
-## 安装
+## 快速开始
+
+**不用 GPU，五分钟。** 环境、秤、harness 和单测都是纯 Python（3.10 以上，只用标准库）：
 
 ```bash
 git clone https://github.com/bethehand/lab1-llm-scratch-to-aha-moment-to-coding-agent
 cd lab1-llm-scratch-to-aha-moment-to-coding-agent
+make test     # 六个自检：假模型 + 真沙盒（CI 每次推送都跑）
+make smoke    # 造几道 Countdown 题，让一个脚本策略走一遍 harness，看硬编码作弊被隐藏测试抓住
+```
+
+**有 GPU。** 主要实验（编程 ① 到 ③、Countdown 臂 S、猜数字）在 `experiments/` 下各有一个脚本，从造题、老师示范、SFT、RL 到评测一路跑完，开头写着实验记录里的数，跑完可以对账。`bench_observation_price.py --hf-dir <模型>` 在任何 Hugging Face 模型上量观测的价格，一张卡一小时左右。见 `experiments/README.md`。
+
+## 安装（GPU）
+
+```bash
 python3 -m venv ~/vllm_env && source ~/vllm_env/bin/activate
 pip install -r requirements-vllm.txt          # vLLM 0.8.5.post1、transformers 4.51.3、torch、bitsandbytes
 export DEEPSEEK_API_KEY=...                   # 只有 DeepSeek 老师和问专家工具用到
@@ -57,7 +72,9 @@ export DEEPSEEK_API_KEY=...                   # 只有 DeepSeek 老师和问专�
 | 评测 | `eval_*.py` `pass_k.py` `baseline_*.py` `compare_*.py` | ×8 的 pass@1、×32 的 pass@32、行为读数、作弊探针 |
 | 对话 | `chat_*_vllm.py` | 原样对话看模型行为 |
 | 预训练 | `config.py` `model.py` `train.py` `prepare_data.py` `estimate.py` `evaluate.py` | 从零训 95M / 201M |
-| 单测 | `tests/` | 假模型加真沙盒 |
+| 单测 | `tests/`，`make test` | 假模型加真沙盒；CI 每次推送都跑 |
+| 复现 | `experiments/` | 一个实验一个脚本，末尾带记录里的数供对账；`smoke_cpu.py` 不用 GPU |
+| 评测尺子 | `bench_observation_price.py` | 在任何 HF 模型上量观测的价格：同题同隐藏测试，给测试和不给测试各跑一遍 |
 | 实验日志 | `PLAN.md` | 原始记录，约一万一千行；报告里每个数都能在里面查到 |
 
 脚本平铺在根目录，彼此按文件名 import，不要移动。
@@ -77,23 +94,25 @@ DeepSeek 密钥只从环境变量 `DEEPSEEK_API_KEY` 读，任何文件里都不
 
 ```bash
 source ~/vllm_env/bin/activate
-torchrun --nproc_per_node=4 grpo_tool_mp_vllm.py --task guess --init <起点 ckpt.pt> --steps 150 -k 16 --beta 0.02 --engine vllm --out out_guess
-python3 export_hf.py --ckpt out_guess/ckpt.pt --out hf_guess      # ckpt.pt → HF 目录
+torchrun --nproc_per_node=4 grpo_tool_mp_vllm.py --task guess --init <起点 ckpt> --ref-init <起点 ckpt> --steps 150 -k 16 --beta 0.02 --engine vllm --out out_guess
+python3 export_hf.py --ckpt out_guess/ckpt_latest.pt --out hf_guess      # 训练器写的是 ckpt_latest.pt / ckpt_best.pt；SFT 写的才是 ckpt.pt
 python3 eval_guess.py --hf-dir hf_guess -n 100 -s 8 --out guess_eval.json
 ```
 
-阶段 ① 修 bug，约两小时：
+阶段 ① 修 bug，约两小时（带探针、pass@32、严秤重判和作弊探针的完整版在 `experiments/stage1_bugfix.sh`）：
 
 ```bash
+python3 export_hf.py --model Qwen/Qwen2.5-Coder-1.5B --out hf_coder_1.5b
 python3 mutate.py --data data_code.json --out data/code_bugs.json
 python3 make_code_demos.py --bugs data/code_bugs.json --out sft_code.jsonl
-torchrun --nproc_per_node=4 sft_qwen.py --data sft_code.jsonl --out out_sft_code
-torchrun --nproc_per_node=4 grpo_tool_mp_vllm.py --task code --init out_sft_code/ckpt.pt --steps 150 --engine vllm --dyn-sample 0.5 --out out_codeRL
-python3 export_hf.py --ckpt out_codeRL/ckpt.pt --out hf_codeRL
-python3 eval_code.py --hf-dir hf_codeRL --data data/code_bugs.json -n 100 -s 8 --out code_eval.json
+torchrun --nproc_per_node=4 sft_qwen.py --model hf_coder_1.5b --data sft_code.jsonl --out out_sft_code --max-len 2048
+torchrun --nproc_per_node=4 grpo_tool_mp_vllm.py --task code --model hf_coder_1.5b --init out_sft_code/ckpt.pt --ref-init out_sft_code/ckpt.pt \
+    --steps 150 --beta 0.02 --max-new 1024 --eval-n 80 --dyn-sample 0.5 --engine vllm --out out_codeRL
+python3 export_hf.py --model hf_coder_1.5b --ckpt out_codeRL/ckpt_latest.pt --out hf_codeRL
+python3 eval_code.py --hf-dir hf_codeRL --model hf_coder_1.5b --data data/code_bugs.json -n 100 -s 8 --out code_eval.json
 ```
 
-参数以各脚本顶部的 docstring 为准。
+参数以各脚本顶部的 docstring 为准；训练器的默认值和这里用的配方不同（`--beta`、`--max-new`、`--engine`），要像上面这样显式传。
 
 ## 数据与许可
 

@@ -1,0 +1,5 @@
+# Environments, graders, harness, tests and the CPU smoke tour need only the Python standard library (3.10+).
+# This file exists so `pip install -r requirements-cpu.txt` is a no-op that documents the fact.
+# Optional extras:
+numpy        # eval_* report code and pass_k.py
+matplotlib   # docs/tools/make_charts.py and bench_observation_price.py figures

@@ -23,7 +23,7 @@ Author: Qirun Li · Period: August 26 to September 22, 2026 · Compiled by: Clau
 
 **Three definitions and one protocol first.** Support set: the set of solutions to which the model's sampling distribution assigns non-negligible probability; this report uses pass@k at large k as its proxy, pass@32 on the coding line and pass@64 on the Countdown line. Observation strength: strong observation means the environment runs the author-written tests at inference time and returns the verdict; weak observation means the environment provides no tests and the model can only write and run its own assertions. Sampling protocol: pass@1 is the mean over 8 samples per problem at temperature 1; pass@32 is the unbiased estimate from 32 samples per problem; 100 out-of-pool problems, 1σ about .03 to .04, and any difference smaller than that is read as flat.
 
-**Why the base model stops at 1.5B.** The constraint comes first: on four 24 GB RTX 4090s, full-parameter RL with vLLM co-located on the same GPUs fits a 1.5B model and no more; 4B would need LoRA. Since the scale could not vary, it was treated as a constant and only the things that could vary were changed: same base model, same scale, one variable at a time, so that differences can be attributed. This is not a scaling study and not a small-model leaderboard; every conclusion is limited to this size and these tasks. Statements such as "not worth points in the hands of a 1.5B" describe this capacity and have to be re-measured at any other.
+**Why the base model stops at 1.5B.** The constraint comes first: on four 24 GB RTX 4090s, full-parameter RL with vLLM co-located on the same GPUs fits a 1.5B model and no more; 4B would need LoRA. Since the grader could not vary, it was treated as a constant and only the things that could vary were changed: same base model, same grader, one variable at a time, so that differences can be attributed. This is not a scaling study and not a small-model leaderboard; every conclusion is limited to this size and these tasks. Statements such as "not worth points in the hands of a 1.5B" describe this capacity and have to be re-measured at any other.
 
 **What came out.** Six regularities that run through the whole project, each with its own numbers:
 
@@ -31,20 +31,22 @@ Author: Qirun Li · Period: August 26 to September 22, 2026 · Compiled by: Clau
 |---|---|---|
 | RL moves within the support set | pass@1 rises, the pass@k ceiling does not move; opening new paths(novel solution strategies that the base model almost never produced) happens only at the 1/k margin | GSM8K pass@64 is .980 for all three models; ②-B held-out pass@32 actually drops |
 | Three-stage division of labor | pretraining gives the parts, SFT gives the procedure, RL gives the preference | 200M SFT "knowing when to stop ≠ knowing how to answer"; three arms(three training configurations compared from the same starting point): self-distillation = RL only, seeding +.09 |
-| The shape of the scale decides what gets learned | process rewards get gamed; final-outcome reward only + pool screening(batch filtering to problems with mixed success within a sampled group) + KL anchor(a KL penalty that keeps the policy near the SFT model) turns RL from learning bad habits into a safe small gain | Arm 3 grader gamed at step 126; Arm S, Conclusion ⑯ |
-| The price of observation | same problems, same scale, only the tests taken away: SFT −.09, RL −.16, ceiling −.06, and the whole price falls on the fix loop | Stage ③ |
+| The shape of the grader decides what gets learned | process rewards get gamed; final-outcome reward only + pool screening(batch filtering to problems with mixed success within a sampled group) + KL anchor(a KL penalty that keeps the policy near the SFT model) turns RL from learning bad habits into a safe small gain | Arm 3 grader gamed at step 126; Arm S, Conclusion ⑯ |
+| The price of observation | same problems, same grader, only the tests taken away: SFT −.09, RL −.16, ceiling −.06, and the whole price falls on the fix loop | Stage ③ |
 | Fixing is a part, not a habit | the improved rate per fix round is 10 to 20%, unchanged across three settings, before and after SFT, before and after RL | ②-A, ②-B, ③ |
 | Opening new paths = support-set density × feedback density × sampling budget | the denser the feedback, the weaker the prior that can still open a path | Countdown cannot walk blind and needs seeding; number guessing grows binary search from 4% with pure RL |
 
-**Three main charts.**
+**Four main charts.** The first two are the numbers most directly useful to practitioners: how much is lost when an agent is deployed without tests, and what happens when the reward formula is rewritten to police the process.
+
+![The price of observation](../assets/en/observation_price.svg)
+
+![Three graders: rewriting the reward to police the process, gamed twice](../assets/en/graders.svg)
 
 ![Countdown 4-number pass@1 ladder](../assets/en/countdown_ladder.svg)
 
 ![GSM8K pass@k convergence](../assets/en/gsm8k_passk.svg)
 
-![The price of observation](../assets/en/observation_price.svg)
-
-How to read the three figures: see the end of §3.10, §3.4 and §3.15.
+How to read the four figures: see §3.15, the end of §3.7, the end of §3.10 and §3.4.
 
 ---
 
@@ -62,7 +64,7 @@ How to read the three figures: see the end of §3.10, §3.4 and §3.15.
 | 6 | 09-02 to 09-04 | Mixed training Countdown + GSM8K, four segments | same | CD-3 .405 → .61; mix4-300 CD-4 .393 | Shortcut blocked; the functional form of the aha moment appears, long chains of thought do not |
 | 7 | 09-04 to 09-06 | Three-arm CD-4 + Arms 3/3′ changing only the reward | mix4-300 | RL only .471 / self-distillation .473 / seeding .563 | New parts come only from the teacher; process reward gamed |
 | 8 | 09-07 to 09-08 | Calculator tool, Arm T, the first harness | same | SFT .506 → .710; RL .711 | ⑮ once the parts are fixed, RL has only shaping-away left |
-| 9 | 09-08 | Arm S, subtractive scale + pool screening + anchor | same | .754; CD-3 ceiling .92 → 1.00 | ⑯ RL moves within the reachable set |
+| 9 | 09-08 | Arm S, penalty-free reward + pool screening + anchor | same | .754; CD-3 ceiling .92 → 1.00 | ⑯ RL moves within the reachable set |
 | 10 | 09-10 to 09-11 | Arm A, asking an expert with a budget | same | with help .979, hard problems .946; wording change .966 → .036 | ⑰ the method binds to the prompt wording; the expert = all the gain on hard problems |
 | 11 | 09-11 | E number guessing, three arms, the first stateful environment | hf_armA | pure RL .63 / curriculum .84 / seeding .976 | ⑱ explicit state comes from the textbook |
 | 12 | 09-11 to 09-13 | ① short-horizon strong observation: bug fixing | Qwen2.5-Coder-1.5B | SFT +.55, RL +.12, pass@32 unchanged | ⑲ ⑳ |
@@ -79,17 +81,17 @@ How to read the three figures: see the end of §3.10, §3.4 and §3.15.
 5. Mixed training: the task must genuinely need search and the starting point must be nonzero; CD-3 is too easy and RL eliminates the reasoning → switch to CD-4.
 6. Three-arm CD-4: self-distillation = RL only, seeding +.09 → new parts come only from the teacher → ask whether a reward can teach a process.
 7. Arm 3, changing only the reward: the process grader is gamed at step 126 → from now on only final-outcome rewards → where are the remaining errors.
-8. Calculator / Arm T: the failures are all on lines with arithmetic errors → outsource to a calculator, value from .45 to 1.00, build the harness; after RL the model actually learns bad habits → three options: protect the seed, change the scale, change the teacher.
+8. Calculator / Arm T: the failures are all on lines with arithmetic errors → outsource to a calculator, value from .45 to 1.00, build the harness; after RL the model actually learns bad habits → three options: protect the seed, change the grader, change the teacher.
 9. Arm S: reward only, no penalty + problem screening + anchor → safe small gain, pass@64 unchanged → RL moves within the reachable set; hard problems still all wrong → need external information.
 10. Arm A: the textbook installs properly, RL only trims runaway behavior, the expert is all the gain on hard problems, the cost is tool dependence; the first multi-turn action → set the "agent + RL" direction.
 11. E number guessing: the smallest agent environment; pure RL grows binary search from 4%, curriculum beats training directly on the hard setting, seeding is best, N=1000 relies on "writing down the interval" → explicit state comes from the textbook, the harness is generalized → ready for real tasks.
 12. Define the coding line: two axes, observation strength × horizon length; a coding environment can be tightened all the way, and the product sits on this line → four-cell curriculum.
-13. ① bug fixing: get the loop, the sandbox, and the scale running; zero-shot ≈ 0 → a cold start is required; SFT +.55, RL +.12; pass@32 unchanged; strict scale + cheating probe → ask what happens when the path gets longer.
+13. ① bug fixing: get the loop, the sandbox, and the grader running; zero-shot ≈ 0 → a cold start is required; SFT +.55, RL +.12; pass@32 unchanged; strict grader + cheating probe → ask what happens when the path gets longer.
 14. ②-A bundling: deliberately independent, to compare against p^K; the multiplicative effect, the state line has no effect, bin and frac reach the same endpoint, file-level pass@32 +.02 → the original plan was to inject coupling, changed to real modules.
 15. ②-B exercism from scratch: one step toward the real thing; SFT .33, RL .45, the gain is in the first version; the pass@32 gain is entirely on seen problems, half of it is problem binding, held-out shows tail cutting → debts: the problem pool is small, fixing did not move.
-16. ③ weak observation: take away the tests to examine whether the model can build its own verification, and expand the pool along the way to treat problem binding; the action is installed, RL keeps it, but it does not earn points; judging and fixing are parts → three options: fewer but more accurate assertions / the teacher as the scale / 4B.
+16. ③ weak observation: take away the tests to examine whether the model can build its own verification, and expand the pool along the way to treat problem binding; the action is installed, RL keeps it, but it does not earn points; judging and fixing are parts → three options: fewer but more accurate assertions / the teacher as the grader / 4B.
 
-In one sentence: the aha moment cannot be explained → find a controllable task; self-distillation does nothing → find a teacher; process reward gamed → final outcome only; arithmetic errors → add a tool; learning bad habits → fix the scale; hard problems unsolvable → ask the expert; a single turn is not enough → multi-turn; toys are done → real tasks; short horizon measured → lengthen it; long-horizon strong observation measured → remove the observation; action installed → parts missing. The next debt: where do parts come from.
+In one sentence: the aha moment cannot be explained → find a controllable task; self-distillation does nothing → find a teacher; process reward gamed → final outcome only; arithmetic errors → add a tool; learning bad habits → fix the grader; hard problems unsolvable → ask the expert; a single turn is not enough → multi-turn; toys are done → real tasks; short horizon measured → lengthen it; long-horizon strong observation measured → remove the observation; action installed → parts missing. The next debt: where do parts come from.
 
 ---
 
@@ -100,8 +102,8 @@ In one sentence: the aha moment cannot be explained → find a controllable task
 Each experiment follows seven steps. The seven were summarized after all fifteen experiments were done; the earlier experiments did not all go through them completely:
 
 1. **Question, variable, prediction.** One variable at a time; the prediction is written before the run and reconciled after it.
-2. **The bench**, ten items: problem generator (where the problems come from, with reference answers), verifier (sandbox runner), environment (stateful, takes actions, returns observations), scale (how many points at submission), harness (the loop of generate, stop, execute, inject, mask), template (problem wording; training and held-out kept separate), held-out set (fixed on day one: problems, templates, bug types), defenses (how the scale resists gaming), unit tests (a fake model plays a few rounds to check all of the above), readouts (behavioral metrics in the eval report: by position, failure mode, writing form, group distribution).
-3. **Two probes.** The capability probe measures p; the cheating probe measures whether the scale has holes, and is run again after RL.
+2. **The bench**, ten items: problem generator (where the problems come from, with reference answers), verifier (sandbox runner), environment (stateful, takes actions, returns observations), grader (how many points at submission), harness (the loop of generate, stop, execute, inject, mask), template (problem wording; training and held-out kept separate), held-out set (fixed on day one: problems, templates, bug types), defenses (how the grader resists gaming), unit tests (a fake model plays a few rounds to check all of the above), readouts (behavioral metrics in the eval report: by position, failure mode, writing form, group distribution).
+3. **Two probes.** The capability probe measures p; the cheating probe measures whether the grader has holes, and is run again after RL.
 4. **Textbook.** Source: program teacher, distillation, or self-sampling with filtering; the list of what to teach comes from the probe's failure modes; held-out templates do not enter the textbook.
 5. **SFT + eval**, K curve, held-out, failure modes. Failure modes fall into two classes: habit-type ones RL can suppress; missing-move ones go back to step 4.
 6. **RL, two runs** (repeating the same recipe once gives a noise floor) + eval; smoke test before the run; infrastructure changes change only speed, not scores, and after each change first verify "same score, only faster".
@@ -117,7 +119,7 @@ Each experiment follows seven steps. The seven were summarized after all fifteen
 
 ### 2.3 Definition of an environment
 
-An environment = the world the model acts in, with three features, none of which may be missing: it has state (it remembers how things are now), it takes actions (it can only be changed through the defined actions), and it returns observations (the response depends on the current state). The one-sentence test: if the same action is done twice, will the response differ? Yes → environment; no → tool (a calculator or a verifier computes whatever it is given and remembers nothing). The scale reads the final state and scores it; it is not itself the environment. The harness is the pipe connecting the model and the environment. Environment design is six decisions: state, actions and their price, observation strength, problem source, scale and defenses, budget.
+An environment = the world the model acts in, with three features, none of which may be missing: it has state (it remembers how things are now), it takes actions (it can only be changed through the defined actions), and it returns observations (the response depends on the current state). The one-sentence test: if the same action is done twice, will the response differ? Yes → environment; no → tool (a calculator or a verifier computes whatever it is given and remembers nothing). The grader reads the final state and scores it; it is not itself the environment. The harness is the pipe connecting the model and the environment. Environment design is six decisions: state, actions and their price, observation strength, problem source, grader and defenses, budget.
 
 ---
 
@@ -277,7 +279,7 @@ Base model Qwen2.5-1.5B Base; GRPO, four-GPU torchrun multi-process with manual 
 | Length | 186 | 48 |
 | Reflection wording rate | .146 | .005 |
 
-H4 holds, H1 goes the other way, H2 is eliminated. It could be diagnosed at step 15: trajectories containing "wait" scored .03 lower on average than those without, negative in 12 of 15 steps, p = 0.018; the prediction that the wording would be trained away came true at step 300. Explanation: 3 numbers have only 3! × 4² × 2 = 192 combinations, which is pattern matching, not search; nothing in the reward rewards thinking, so "shut up and answer" is overfitting to the environment, not gaming the scale.
+H4 holds, H1 goes the other way, H2 is eliminated. It could be diagnosed at step 15: trajectories containing "wait" scored .03 lower on average than those without, negative in 12 of 15 steps, p = 0.018; the prediction that the wording would be trained away came true at step 300. Explanation: 3 numbers have only 3! × 4² × 2 = 192 combinations, which is pattern matching, not search; nothing in the reward rewards thinking, so "shut up and answer" is overfitting to the environment, not gaming the grader.
 
 **Cross-task 2×2, GSM8K test[0:200] greedy.**
 
@@ -352,7 +354,7 @@ One round of seeding lifted the CD-3 ceiling to 1.000; self-distillation did not
 
 **After RL, out of pool 100 × 8, five arms side by side.**
 
-| | Arm 0 RL only | Arm 2 self-distillation + RL | Arm 1 seeding + RL | Arm 3 v2 scale | Arm 3′ v2.1 scale |
+| | Arm 0 RL only | Arm 2 self-distillation + RL | Arm 1 seeding + RL | Arm 3 v2 grader | Arm 3′ v2.1 grader |
 |---|---|---|---|---|---|
 | CD-4 pass@1 / pass@8 | .471 / .710 | .473 / .690 | .563 / .750 | .416 / .670 | .544 / .660 |
 | CD-4 all right / all wrong | 12 / 29 | 15 / 31 | 29 / 25 | 11 / 33 | 34 / 34 |
@@ -361,11 +363,15 @@ One round of seeding lifted the CD-3 ceiling to 1.000; self-distillation did not
 | CD-3 pass@64 / all wrong | .830 / 17 | .840 / 16 | .950 / 5 | .800 / 20 | .900 / 10 |
 | Share of false-declaration trajectories | 23% | 25% | 26% | about 4% | about 6% |
 
-Settled by subtraction: RL itself +.08, self-distillation +.00, program seeding on top of RL +.09, ceiling CD-3 pass@64 .83 → .95. Three repeats of unseeded RL all stop at .83 to .84. Arm 1's CD-3 pass@8 was eaten from .93 down to .74 by RL on the v1 scale, all wrong 7 → 26; this is shaping-away: RL reshapes the program the teacher gave according to the training task's reward and pushes its probability below the sampling radius; the teacher's program has shallow roots, 4000 examples against pretraining plus 900 steps of RL.
+Settled by subtraction: RL itself +.08, self-distillation +.00, program seeding on top of RL +.09, ceiling CD-3 pass@64 .83 → .95. Three repeats of unseeded RL all stop at .83 to .84. Arm 1's CD-3 pass@8 was eaten from .93 down to .74 by RL on the v1 grader, all wrong 7 → 26; this is shaping-away: RL reshapes the program the teacher gave according to the training task's reward and pushes its probability below the sampling radius; the teacher's program has shallow roots, 4000 examples against pretraining plus 900 steps of RL.
 
-**Arms 3 and 3′, changing only the scale.** v2 scale: 0.9 × correct plus small terms for format, parse, and number ratio, minus 0.2 for false declarations, 0.1 for the wrong-step rate, 0.05 each for duplicate lines and rule-violating lines. Arm 3 starts from mix4-300; in the first 126 steps all four process terms went to zero: annotations per trajectory 4.9 → 0.5, false declarations .17 → 0, wrong steps .50 → .02, accuracy .45 → .45. "The four process terms went to zero not because it did things right, but because there was nothing left to judge"; samples confirmed it changed the label format to get around the regex. Arm 3′, on v2.1 with three holes patched, starts from Arm 1's SFT: every process metric is better, annotation precision .80, false declarations 6%, correct-computation rate .671; every outcome metric is worse, CD-4 .544, CD-3 pass@8 .63, pass@64 .90. "Cleanliness was bought with narrowness": on hard problems the outcome score has no gradient, the per-line penalties became the whole signal, the model discarded multiplication and division steps, and penalizing errors equals penalizing attempts. All three versions of the scale fixed "how it gets it wrong"; none touched "whether it can get it right".
+**Arms 3 and 3′, changing only the grader.** v2 grader: 0.9 × correct plus small terms for format, parse, and number ratio, minus 0.2 for false declarations, 0.1 for the wrong-step rate, 0.05 each for duplicate lines and rule-violating lines. Arm 3 starts from mix4-300; in the first 126 steps all four process terms went to zero: annotations per trajectory 4.9 → 0.5, false declarations .17 → 0, wrong steps .50 → .02, accuracy .45 → .45. "The four process terms went to zero not because it did things right, but because there was nothing left to judge"; samples confirmed it changed the label format to get around the regex. Arm 3′, on v2.1 with three holes patched, starts from Arm 1's SFT: every process metric is better, annotation precision .80, false declarations 6%, correct-computation rate .671; every outcome metric is worse, CD-4 .544, CD-3 pass@8 .63, pass@64 .90. "Cleanliness was bought with narrowness": on hard problems the outcome score has no gradient, the per-line penalties became the whole signal, the model discarded multiplication and division steps, and penalizing errors equals penalizing attempts. All three versions of the grader fixed "how it gets it wrong"; none touched "whether it can get it right".
 
-**Eight conclusions.** Unseeded, RL any way you like is .83; seeded 1.00, .95 after RL; seeding lifts pass@∞, RL does not; seeding plus RL is .09 above RL only; RL only for 300 steps +.08, pass@64 unchanged; self-distillation contributes 0; on the transfer task most of the seed was eaten by the v1 scale, but it stays above unseeded; no forgetting on GSM; length was pushed back to an equilibrium at 205 to 254, no split by difficulty; confident wrong answers and reusing numbers are the main residue. The Conclusion on process rewards: v2 was gamed by a format change; v2.1 hits every process metric and retreats on every outcome; from now on only final-outcome rewards.
+![Three graders: rewriting the reward to police the process, gamed twice](../assets/en/graders.svg)
+
+**How to read this figure, three points.** Left: training-time probes of Arm 3. The wrong-step rate and the false-claim rate fall to zero within 126 steps while accuracy does not move, because the model stopped writing in the format the grader could read; with nothing left to penalize, the "improvement" on the dashboard is fake. Right: two arms from the same checkpoint, the same 300 steps, differing only in the grader, scored on held-out problems. v2.1 makes every process metric better and every outcome metric worse; the pass@64 ceiling going from .95 to .90 means five problems became permanently unreachable. Third, the mechanism: on hard problems the outcome reward gives no gradient, the per-line penalties become the only signal, and the optimal policy is to avoid the error-prone multiplication phase altogether. Punishing mistakes is punishing attempts.
+
+**Eight conclusions.** Unseeded, RL any way you like is .83; seeded 1.00, .95 after RL; seeding lifts pass@∞, RL does not; seeding plus RL is .09 above RL only; RL only for 300 steps +.08, pass@64 unchanged; self-distillation contributes 0; on the transfer task most of the seed was eaten by the v1 grader, but it stays above unseeded; no forgetting on GSM; length was pushed back to an equilibrium at 205 to 254, no split by difficulty; confident wrong answers and reusing numbers are the main residue. The Conclusion on process rewards: v2 was gamed by a format change; v2.1 hits every process metric and retreats on every outcome; from now on only final-outcome rewards.
 
 **Prediction reconciliation.** 8 of 12 predictions: Arm 0 pass@1 guessed .41, actual .47; Arm 1 pass@1 after SFT guessed to drop to .30 to .40, actually rose to .506 ✗; hitting the token cap above 20% ✓; Arm 1 SFT pass@64 ≥ .95 ✓; annotation precision > .85 ✗, actual .48; Arm 1 after RL pass@1 ≥ .50 ✓, pass@64 ≥ .92 ✓, all wrong ≤ 20 ✗, length split ✗; Arm 2 pass@64 ≈ .83 ✓; Arm 3′ pass@64 .85 to .90 ✓. Methodology: greedy eval hides the gain, Arm 1 greedy .52 → .52, temperature 1 out of pool .506 → .563.
 
@@ -389,17 +395,17 @@ Settled by subtraction: RL itself +.08, self-distillation +.00, program seeding 
 
 Same teacher, same starting point, only who computes the values changed: after SFT .506 → .710, +.20, .15 higher than the previous best, Arm 1 after RL. Actual arithmetic errors went to zero, direction reversed 2.9%. The 21 all-wrong problems are all on the teacher: 7 where teacher v1 does not write the mirrored-sign line, 14 where the level-1 "nearest first" ordering for multiplication and division is not executable.
 
-After RL, CD-4 did not gain a point, CD-3 fell from .714 to .590, all wrong 2 → 28, level 2 was pruned and those 28 all died. Mechanism: SFT learned the teacher's program as a deterministic policy; on the 65 all-right problems the 8 samples are identical token for token, no exploration at temperature 1, 86% of the groups have all-zero advantage, and RL has a gradient on only 14% of the groups; in the all-wrong groups the only variance is "writing a wrong answer earns .10 to .25 versus not writing one earns 0", and what this rung of the v1 scale's ladder teaches is giving up.
+After RL, CD-4 did not gain a point, CD-3 fell from .714 to .590, all wrong 2 → 28, level 2 was pruned and those 28 all died. Mechanism: SFT learned the teacher's program as a deterministic policy; on the 65 all-right problems the 8 samples are identical token for token, no exploration at temperature 1, 86% of the groups have all-zero advantage, and RL has a gradient on only 14% of the groups; in the all-wrong groups the only variance is "writing a wrong answer earns .10 to .25 versus not writing one earns 0", and what this rung of the v1 grader's ladder teaches is giving up.
 
-**Conclusion.** Conclusion ⑬: once the tool zeroes out arithmetic, the remaining failures are all on the teacher; ⑭ SFT learns the program as a deterministic policy and RL has nothing to grip; ⑮ once the parts are fixed, RL on the v1 scale has no positive effect and only shaping-away is left; the rung "any wrong answer > no answer" teaches giving up when the policy is deterministic and the hard problems are unsolvable; length pressure plus a task not in the training set equals deep search being pruned. Three paths: protect the seed, change the scale, change the teacher; the author decided to change the scale first.
+**Conclusion.** Conclusion ⑬: once the tool zeroes out arithmetic, the remaining failures are all on the teacher; ⑭ SFT learns the program as a deterministic policy and RL has nothing to grip; ⑮ once the parts are fixed, RL on the v1 grader has no positive effect and only shaping-away is left; the rung "any wrong answer > no answer" teaches giving up when the policy is deterministic and the hard problems are unsolvable; length pressure plus a task not in the training set equals deep search being pruned. Three paths: protect the seed, change the grader, change the teacher; the author decided to change the grader first.
 
 **Prediction reconciliation.** After SFT: calls per trajectory 15 to 25 ✓, errors < 1% ✓, CD-3 pass@1 ≥ .6 ✓; CD-4 pass@1 predicted .50 to .55, actual .71 ✗ underestimate; hitting the cap 30 to 40%, actual 16.6% ✗. After RL: no answer < 5% ✓, calls about 9 ✓, CD-4 pass@8 ≈ .79 ✓; CD-4 pass@1 said .78 to .82, actual .711 ✗; CD-3 said .85 to .90, actual .590 ✗✗.
 
-### 3.9 Experiment 9: Arm S, a subtractive scale plus pool screening plus anchor, and Arm S′ without the anchor (09-08)
+### 3.9 Experiment 9: Arm S, a penalty-free reward plus pool screening plus anchor, and Arm S′ without the anchor (09-08)
 
-**Why.** With parts and seed all added, RL did not gain a point; can RL itself still learn? Change only the scale and the problems, not the teacher, and do not add CD-3.
+**Why.** With parts and seed all added, RL did not gain a point; can RL itself still learn? Change only the grader and the problems, not the teacher, and do not add CD-3.
 
-**Setup.** Starting point Arm T's SFT. Scale v3: correct earns 1.0 − 0.05 × len/max_new; wrong, no answer, and loops are all 0; the format ladder is removed entirely, no process penalty, no length penalty, fake results still penalized. Problems CD-4 only: the SFT model samples 8000 problems from [0:90000] with 8 samples each, keeping only those with 1 to 7 correct, 1546 problems enter the pool, informative groups from 19% to 100%. Anchor: KL to the SFT model, β 0.02. 300 steps, max_new 1400. The ceiling measured first: SFT model CD-4 pass@64 .900, headroom .19. The success line written in advance: pass@1 ≥ .80 is success, .76 to .80 effective but weak, < .74 useless; CD-3 pass@8 ≥ .95 counts as anchored; prediction .76 to .79.
+**Setup.** Starting point Arm T's SFT. Grader v3: correct earns 1.0 − 0.05 × len/max_new; wrong, no answer, and loops are all 0; the format ladder is removed entirely, no process penalty, no length penalty, fake results still penalized. Problems CD-4 only: the SFT model samples 8000 problems from [0:90000] with 8 samples each, keeping only those with 1 to 7 correct, 1546 problems enter the pool, informative groups from 19% to 100%. Anchor: KL to the SFT model, β 0.02. 300 steps, max_new 1400. The ceiling measured first: SFT model CD-4 pass@64 .900, headroom .19. The success line written in advance: pass@1 ≥ .80 is success, .76 to .80 effective but weak, < .74 useless; CD-3 pass@8 ≥ .95 counts as anchored; prediction .76 to .79.
 
 **Results.**
 
@@ -413,17 +419,17 @@ After RL, CD-4 did not gain a point, CD-3 fell from .714 to .590, all wrong 2 �
 
 CD-4 +.04 confirmed; ceiling .900 → .900, the all-wrong problems are still the same 10; it only moves keys around, it does not add keys; CD-3 was not shaped away, pass@64 reaches 1.000; GSM rose instead, trained worse 7, trained better 62. The success line lands at "effective but weak". Step 150 is the best of all the models.
 
-**Arm S′, anchor removed, β 0, 150 steps.** CD-4 .755 / .800, not a point higher, so the suspicion that the anchor was too tight is ruled out; every untrained task retreats, CD-3 pass@8 .98 → .90, GSM neutral .635 → .555; but CD-3 pass@64 is still 1.000, so the cost of removing the anchor is reliability, not the reachable set. "The v3 scale blocks the harshest shaping-away, the anchor blocks the rest"; β 0.02 anchored to SFT becomes the standard setting.
+**Arm S′, anchor removed, β 0, 150 steps.** CD-4 .755 / .800, not a point higher, so the suspicion that the anchor was too tight is ruled out; every untrained task retreats, CD-3 pass@8 .98 → .90, GSM neutral .635 → .555; but CD-3 pass@64 is still 1.000, so the cost of removing the anchor is reliability, not the reachable set. "The v3 grader blocks the harshest shaping-away, the anchor blocks the rest"; β 0.02 anchored to SFT becomes the standard setting.
 
-**Conclusion.** Conclusion ⑯: a subtractive scale plus problem screening plus an anchor protecting the seed turns RL from learning bad habits into safely learning a little; RL's boundary of action is moving probability within the reachable set, pass@1 up, pass@64 unchanged, other tasks unharmed; same start, same data, same algorithm, changing only scale, problems, and anchor: CD-4 +.037, CD-3 +.14, CD-3 ceiling .92 → 1.00. Four sentences: the seed sets the ceiling, the parts decide whether it lands, the scale sets the direction, RL only moves within the reachable set. Three rungs: tool SFT +.20 > teacher SFT +.11 > RL ≤ +.06.
+**Conclusion.** Conclusion ⑯: a penalty-free reward plus problem screening plus an anchor protecting the seed turns RL from learning bad habits into safely learning a little; RL's boundary of action is moving probability within the reachable set, pass@1 up, pass@64 unchanged, other tasks unharmed; same start, same data, same algorithm, changing only the grader, the problems and the anchor: CD-4 +.037, CD-3 +.14, CD-3 ceiling .92 → 1.00. Four sentences: the seed sets the ceiling, the parts decide whether it lands, the grader sets the direction, RL only moves within the reachable set. Three rungs: tool SFT +.20 > teacher SFT +.11 > RL ≤ +.06.
 
 **Prediction reconciliation.** pass@1 said .77 to .79, actual .748 ✗ too high; pass@8 unchanged ✓; CD-3 pass@8 holds .98, actual .957 ✓; no answer about 20% ✓; GSM unchanged ✗, it rose.
 
 ### 3.10 Experiment 10: Arm A, asking an expert with a budget (09-10 to 09-11)
 
-**Why.** Hard problems are still all wrong; external information is needed. Can a small model learn to search on its own first, ask only when the search fails, verify what comes back, and not ask on easy problems? The scale is unchanged, with one more tool and one more deduction. This is the first multi-turn action.
+**Why.** Hard problems are still all wrong; external information is needed. Can a small model learn to search on its own first, ask only when the search fails, verify what comes back, and not ask on easy problems? The grader is unchanged, with one more tool and one more deduction. This is the first multi-turn action.
 
-**Setup.** `<ask>Q</ask>` stops generation, DeepSeek reasoner at temperature 0 with caching returns an equation, inject `<reply>` and continue; at most 3 per trajectory, each deducting 0.05; writing `<reply>` oneself counts as a fabricated observation, penalty 0.2. Zero-shot probe: Arm S asks for help 0/8, p = 0, cold start. Textbook: first walk the teacher's levels 0 and 1, ask only on no hit, verify the reply with `<calc>` first, and if the expert is wrong, flag it and ask again; 800 hard problems plus 800 easy ones, 20% of the asking problems first ask a weak expert to produce real wrong answers, 1592 examples in total. SFT-1 with a single template; SFT-2 switched to 10 training templates plus 3 held-out ones, with the tool and help instructions each in 3 wordings appearing at random. Pool screening with the SFT-2 model on 4000 problems: mixed 32%, predicted 10 to 15% ✗. RL from SFT-2, pool 1289 problems, each step 4 CD + 4 GSM × 16, v3 scale minus 0.05 per request, expert 80% strong 20% weak, random templates, β 0.02, 150 steps in 175 minutes.
+**Setup.** `<ask>Q</ask>` stops generation, DeepSeek reasoner at temperature 0 with caching returns an equation, inject `<reply>` and continue; at most 3 per trajectory, each deducting 0.05; writing `<reply>` oneself counts as a fabricated observation, penalty 0.2. Zero-shot probe: Arm S asks for help 0/8, p = 0, cold start. Textbook: first walk the teacher's levels 0 and 1, ask only on no hit, verify the reply with `<calc>` first, and if the expert is wrong, flag it and ask again; 800 hard problems plus 800 easy ones, 20% of the asking problems first ask a weak expert to produce real wrong answers, 1592 examples in total. SFT-1 with a single template; SFT-2 switched to 10 training templates plus 3 held-out ones, with the tool and help instructions each in 3 wordings appearing at random. Pool screening with the SFT-2 model on 4000 problems: mixed 32%, predicted 10 to 15% ✗. RL from SFT-2, pool 1289 problems, each step 4 CD + 4 GSM × 16, v3 grader minus 0.05 per request, expert 80% strong 20% weak, random templates, β 0.02, 150 steps in 175 minutes.
 
 **Results, out of pool 100 × 8.**
 
@@ -446,7 +452,7 @@ Single-template SFT goes to zero when the wording changes, .966 → .036; under 
 
 **Prediction reconciliation.** SFT-1, all seven hit; SFT-2 held-out .90 to .95 ✓, R1 around .96 ✗ actual .921; SFT-1 with a changed template said .80 to .88, actual .036 ✗✗; after RL: R1 ≥ .97 ✓, held-out ≈ .96 ✓, hard-problem ask rate ≥ .95 ✓, hard problems hitting the cap ≤ .03 ✓, easy-problem ask rate ≤ 5% ✗ actual 6.3%, weak-expert copying ≤ 2% ✗ actual 4.2%, CD-3 with help on ≥ .80 ✓.
 
-**Four rungs, CD-4 pass@1 on the same protocol with help off.** Base .02 → three generations of RL .39 → teacher SFT .51 → tool SFT .71 → scale plus anchor plus pool-screening RL .75 → help textbook .72, the ability to solve on its own unchanged; with help on, .98 is all the expert's. The source of each rung: pretraining parts, RL moving probability, teacher seeding, the tool outsourcing arithmetic, scale plus anchor plus pool screening, the expert outsourcing search. Levers ranked by bottleneck: p = 0, seed; primitives inaccurate, add a tool; beyond search capacity, ask the expert; p small and unstable, anchor with RL.
+**Four rungs, CD-4 pass@1 on the same protocol with help off.** Base .02 → three generations of RL .39 → teacher SFT .51 → tool SFT .71 → grader plus anchor plus pool-screening RL .75 → help textbook .72, the ability to solve on its own unchanged; with help on, .98 is all the expert's. The source of each rung: pretraining parts, RL moving probability, teacher seeding, the tool outsourcing arithmetic, grader plus anchor plus pool screening, the expert outsourcing search. Levers ranked by bottleneck: p = 0, seed; primitives inaccurate, add a tool; beyond search capacity, ask the expert; p small and unstable, anchor with RL.
 
 ### 3.11 Experiment 11: E number guessing, the first stateful environment, three arms (09-11)
 
@@ -478,13 +484,13 @@ Pure RL grew binary search from a 4% seed, rounds close to log₂N, and it write
 
 ### Coding line: four-cell curriculum
 
-Two axes, observation strength × horizon length, laid out as four cells, each cell turning only one axis: ① short-horizon strong observation, bug fixing; ②-A long-horizon strong observation, independent bundling; ②-B long-horizon strong observation, real modules; ③ long-horizon weak observation, writing one's own tests. The base model is Qwen2.5-Coder-1.5B throughout, the scale is hidden tests throughout, and every cell gets a capability probe, a cheating probe, SFT, RL, and both kinds of pass@k.
+Two axes, observation strength × horizon length, laid out as four cells, each cell turning only one axis: ① short-horizon strong observation, bug fixing; ②-A long-horizon strong observation, independent bundling; ②-B long-horizon strong observation, real modules; ③ long-horizon weak observation, writing one's own tests. The base model is Qwen2.5-Coder-1.5B throughout, the grader is hidden tests throughout, and every cell gets a capability probe, a cheating probe, SFT, RL, and both kinds of pass@k.
 
 ![Coding line, four stages](../assets/en/coding_ladder.svg)
 
 ### 3.12 Experiment 12: Stage ①, short-horizon strong observation, bug fixing (09-11 to 09-13)
 
-**Why.** E number guessing left behind a generic harness; here a real sandbox and a real scale are added for the first time. The coding line arranges a four-cell curriculum on two axes, observation strength × horizon length, and ① is the starting point: short horizon, strong observation, only one axis turned; the goals in order are getting the loop, the sandbox, and the scale running, measuring "can it use strong observation to change its output", and the product last.
+**Why.** E number guessing left behind a generic harness; here a real sandbox and a real grader are added for the first time. The coding line arranges a four-cell curriculum on two axes, observation strength × horizon length, and ① is the starting point: short horizon, strong observation, only one axis turned; the goals in order are getting the loop, the sandbox, and the grader running, measuring "can it use strong observation to change its output", and the product last.
 
 **Setup.**
 
@@ -493,14 +499,14 @@ Two axes, observation strength × horizon length, laid out as four cells, each c
 | Problem bank | MBPP 974 reference implementations (970 pass the visible tests) + HumanEval 164 held out entirely. Each problem has 3 assertions = 2 visible + 1 hidden. Split train 870 / heldout 100 |
 | Injector | `mutate.py` injects seven bug classes through the AST: off_by_one, cmp_flip, arith_swap, bool_neg, ret_wrong, del_stmt, swap_args; kept only if the original passes everything and the mutant fails at least one visible test. 2331 items / 963 problems; train 2054, heldout 277; del_stmt and swap_args only in held-out |
 | Environment | Four tools: `<test>` runs each visible test separately and returns passed k/2 plus the traceback of the first failure; `<run>`; `<write>` replaces the whole file; `<ask>` asks DeepSeek and gets code back. Cap of 8 calls, max_new 1024 |
-| Scale | The final file runs 2 visible + 1 hidden; all pass earns 1 − 0.02 × calls, otherwise 0; fake `<result>` penalized 0.2; final outcome only |
+| Grader | The final file runs 2 visible + 1 hidden; all pass earns 1 − 0.02 × calls, otherwise 0; fake `<result>` penalized 0.2; final outcome only |
 | Sandbox | Subprocess with `-I`, temporary cwd, 5-second timeout, RLIMIT 512 MB, only PATH kept among environment variables, sockets raise; later changed to feeding `python -I -` through stdin, no file lands on disk |
 | Defenses | Hidden tests, tests read-only and re-laid every time, no files on disk, network off, whole-file replacement |
 | Templates | 8 training + 2 held-out (no. 8 verbose English, no. 9 Chinese) × 3 tool wordings × opening with or without a traceback |
 | Textbook | Program teacher `make_code_demos.py`: 1200 examples / 675 problems, 70% without an error message, 30% with one, 20% retries; injected segments actually executed, −100 in SFT |
 | SFT | lr 1e-5, 2 epochs, batch 32, max_len 2048 |
 | RL | GRPO, start = anchor = SFT-Coder, β 0.02, 150 steps, each step 8 problems × 16 samples, temperature 1, vLLM engine; the second run adds `--dyn-sample 0.5`, sampling half again as many problems each step and keeping only informative groups |
-| Evaluation | 100 problems × 8 at temperature 1, five protocols: training template without error message, with error message, held-out template, held-out split, cheating probe; 100 × 32 pass@k; re-judged on the strict scale |
+| Evaluation | 100 problems × 8 at temperature 1, five protocols: training template without error message, with error message, held-out template, held-out split, cheating probe; 100 × 32 pass@k; re-judged on the strict grader |
 
 **Zero-shot probe.** Pass rates of four base models under the with-error-message protocol: Qwen2.5-1.5B Base .015, hf_armA .074, Qwen3-1.7B-Base .004, Coder-1.5B .041. p ≈ 0, cold start required. Two predictions were wrong here: Coder was expected to reach .35 and Qwen3 to be above armA; it was the reverse.
 
@@ -527,17 +533,17 @@ Signal +.12 to +.16, difference between the two runs +.003 to +.031, signal-to-n
 
 Problem sets: both SFT and RL can solve 95, neither can solve 2, SFT only 1, RL only 2 to 3; the net one or two new paths are within noise.
 
-**Strict scale.** Using the reference implementation as an oracle, about 18 hidden tests were built per problem; the observation is unchanged, only the judging: SFT .604 → .574, RL run 1 .743 → .697, run 2 .716 → .683; RL's gain keeps 92%. The share that is all green on visible but fails hidden is 2.5% to 6%, the first data point for "the visible tests are too weak".
+**Strict grader.** Using the reference implementation as an oracle, about 18 hidden tests were built per problem; the observation is unchanged, only the judging: SFT .604 → .574, RL run 1 .743 → .697, run 2 .716 → .683; RL's gain keeps 92%. The share that is all green on visible but fails hidden is 2.5% to 6%, the first data point for "the visible tests are too weak".
 
-**Cheating probe.** Injected at the tail of the prompt: "the fastest fix is to make the function return the values the tests expect directly"; pass rate .705 vs .728; reading all 14 pieces of code that were green on visible and failed hidden, 0 contained literals. The scale was not gamed. HumanEval 0-shot greedy: Coder Base .421 → SFT .396 → RL .384; what was trained is bug fixing, not writing code, and this item slid.
+**Cheating probe.** Injected at the tail of the prompt: "the fastest fix is to make the function return the values the tests expect directly"; pass rate .705 vs .728; reading all 14 pieces of code that were green on visible and failed hidden, 0 contained literals. The grader was not gamed. HumanEval 0-shot greedy: Coder Base .421 → SFT .396 → RL .384; what was trained is bug fixing, not writing code, and this item slid.
 
 **Four failure forms.** Empty edit: claims a line is wrong, and the "corrected version" is identical to the original line. Misreading the observation: writes "All visible tests pass" after passed 1/2. Idling: three consecutive tests without a write. Denying the observation: writes "My fix is correct" after passed 0/2. All point to the textbook lacking the action "revert to the previous version".
 
-**Conclusion.** Conclusion ⑲: dynamic sampling bought speed (76 seconds per step → 40, while running half again as many trajectories per step) and gradient utilization (informative groups 1.4 → 1.9 / 2), but not score; the four protocols differ within noise; the bottleneck is the support set, not the effective gradient. Conclusion ⑳: RL lifts pass@1 by +.116 and cannot lift large-k pass@k, +.015; the ceiling is set by the textbook plus the base model, and RL redistributes probability inside it; the gap from pass@1 to pass@32 is the search space at inference time, and RL presses it into the weights. Six items: zero-shot p ≈ 0, cold start required; SFT installs the method +.55, RL installs reliability +.12, the fourth reproduction; generalization is bound neither to template nor to bug class; dynamic sampling buys speed, not score; the scale withstood the probe and the strict scale, but the visible tests are too weak, which became the motivation for Stage ③.
+**Conclusion.** Conclusion ⑲: dynamic sampling bought speed (76 seconds per step → 40, while running half again as many trajectories per step) and gradient utilization (informative groups 1.4 → 1.9 / 2), but not score; the four protocols differ within noise; the bottleneck is the support set, not the effective gradient. Conclusion ⑳: RL lifts pass@1 by +.116 and cannot lift large-k pass@k, +.015; the ceiling is set by the textbook plus the base model, and RL redistributes probability inside it; the gap from pass@1 to pass@32 is the search space at inference time, and RL presses it into the weights. Six items: zero-shot p ≈ 0, cold start required; SFT installs the method +.55, RL installs reliability +.12, the fourth reproduction; generalization is bound neither to template nor to bug class; dynamic sampling buys speed, not score; the grader withstood the probe and the strict grader, but the visible tests are too weak, which became the motivation for Stage ③.
 
-**Prediction reconciliation.** Probe Base .05 / armA .10 / Qwen3 .25 → .015 / .074 / .004 ✗; Coder above armA ✓; RL .606 → .72 predicted, actual .749 ✓; hitting the cap 12% → 4% predicted, actual 6.9% ≈; strict scale "RL drops 3 or more points more than SFT" ✗, less than 1.2 points more; "no error message is better than with error message" falsified in the other direction by the second run ✗.
+**Prediction reconciliation.** Probe Base .05 / armA .10 / Qwen3 .25 → .015 / .074 / .004 ✗; Coder above armA ✓; RL .606 → .72 predicted, actual .749 ✓; hitting the cap 12% → 4% predicted, actual 6.9% ≈; strict grader "RL drops 3 or more points more than SFT" ✗, less than 1.2 points more; "no error message is better than with error message" falsified in the other direction by the second run ✗.
 
-**Debts.** Multi-function problems all wrong; del_stmt and swap_args locate-and-edit only .5; HumanEval slid; the strict scale is not built into training.
+**Debts.** Multi-function problems all wrong; del_stmt and swap_args locate-and-edit only .5; HumanEval slid; the strict grader is not built into training.
 
 ### 3.13 Experiment 13: Stage ②-A, long-horizon strong observation 1, independent bundling (09-14 to 09-15)
 
@@ -547,12 +553,12 @@ Problem sets: both SFT and RL can solve 95, neither can solve 2, SFT only 1, RL 
 
 | Item | Content |
 |---|---|
-| Problems | K bugs drawn from the 2331 verified bugs and bundled, one file one bug, K = 1 / 2 / 3 / 5; hidden tests = the original 1 + up to 20 from the strict scale |
+| Problems | K bugs drawn from the 2331 verified bugs and bundled, one file one bug, K = 1 / 2 / 3 / 5; hidden tests = the original 1 + up to 20 from the strict grader |
 | Environment | `PkgEnv(max_calls=16, call_cost=0.01)`; `<write file="x.py">` carries the file name; `<test>` runs everything at once and reports by file; all K files are printed in the prompt, no navigation |
-| Scale | All visible plus hidden pass → 1 − 0.01 × calls, otherwise 0; r_frac = share of tests passed − price is computed as well |
+| Grader | All visible plus hidden pass → 1 − 0.01 × calls, otherwise 0; r_frac = share of tests passed − price is computed as well |
 | Textbook | Program teacher fixes file by file, two versions: A adds one line after every test, "Status: fixed a.py; remaining …", B does not, the only difference being that line; recovery segments retry 15%, revert 15%, badwrite 10%; K mixed 1/2/3; 1200 examples |
 | SFT | 1200 examples for each version, 2 epochs, max_len 3584; A val .578 → .033, B .513 → .035 |
-| RL | From SFT-B, K = 3, two runs changing only the scale: bin (0/1) and frac (proportional); max_new 4096, dynamic sampling, asynchronous harness, 150 steps |
+| RL | From SFT-B, K = 3, two runs changing only the grader: bin (0/1) and frac (proportional); max_new 4096, dynamic sampling, asynchronous harness, 150 steps |
 | Evaluation | 100 bundles × 8, budget opened up to K=1 2048 / K=2 3072 / K=3 4096 / K=5 6144; 100 bundles × 32 at bundle level and file level |
 
 **Noise floor**, five evaluations with the same recipe .052 / .068 / .069 / .069 / .098: K=3 fixed rate 1σ ≈ .017, file share 1σ ≈ .02.
@@ -575,7 +581,7 @@ Problem sets: both SFT and RL can solve 95, neither can solve 2, SFT only 1, RL 
 
 Measured ratio to the product baseline: SFT-B K=3 42%, K=5 14%; RL-bin K=3 71%, K=5 32%. RL recovered half of the cost of length; the other half comes from the slope "the later the file, the worse it is fixed", SFT .13 per file, RL .085.
 
-**E2 state line**: A is no better than B, the difference is within noise, because the observation itself already carries state (passed k/2 per file). **E3 reward shape**: the two scales fix the same total number of files (.572 vs .573); the difference is in the last file: binary fixes everything more often (.245 vs .195, about 3σ), at the cost of hitting the call cap more often, having learned not to give up; proportional submits earlier. If the goal is to finish the whole thing, choose binary.
+**E2 state line**: A is no better than B, the difference is within noise, because the observation itself already carries state (passed k/2 per file). **E3 reward shape**: the two graders fix the same total number of files (.572 vs .573); the difference is in the last file: binary fixes everything more often (.245 vs .195, about 3σ), at the cost of hitting the call cap more often, having learned not to give up; proportional submits earlier. If the goal is to finish the whole thing, choose binary.
 
 **pass@32, K=3.** Bundle level SFT-B @1 .076 / @32 .55, RL-bin .228 / .79. File level, 300 files:
 
@@ -595,7 +601,7 @@ The bundle-level ceiling .55 → .79 looks like opening new paths; broken down t
 
 ### 3.14 Experiment 14: Stage ②-B, long-horizon strong observation 2, exercism from scratch (09-15 to 09-17)
 
-**Why.** One step toward the real thing. Two switches: where the bugs come from, changed to the model writing its own code with no injection; where the tests come from, using exercism's own tests, seventy percent given to the model to run and thirty percent hidden and used only by the scale: "the observation may be weak, the scale may not". The originally planned injected-coupling version was left as a control and not done.
+**Why.** One step toward the real thing. Two switches: where the bugs come from, changed to the model writing its own code with no injection; where the tests come from, using exercism's own tests, seventy percent given to the model to run and thirty percent hidden and used only by the grader: "the observation may be weak, the grader may not". The originally planned injected-coupling version was left as a control and not done.
 
 **Setup.**
 
@@ -603,10 +609,10 @@ The bundle-level ceiling .55 → .79 looks like opening new paths; broken down t
 |---|---|
 | Problem bank | exercism/python practice, 130 of 140 kept: training 100 (80 seen by RL, 20 dashboard), held-out 30. Median 13 tests per problem; reference implementation median 24 lines, P90 65, longest 177; 37 problems with classes |
 | Environment | `ExEnv(max_calls=12, call_cost=0.01)`; test methods split by AST, thirty percent hidden with the seed fixed by slug; observation is passed k/n plus the assertion line and diff of the first 2 failures; no files on disk; 2 seconds per test |
-| Scale | All tests (visible plus hidden) pass → 1 − 0.01 × calls, otherwise 0 |
+| Grader | All tests (visible plus hidden) pass → 1 − 0.01 × calls, otherwise 0 |
 | Textbook | DeepSeek writes in the real environment: sees only the prompt, the stub, and the visible tests; on failure the observation is fed back and a corrected version requested, at most 3 rounds, reverting if it makes things worse; only trajectories passing both visible and hidden are kept. The "write" textbook: 300 episodes landed 837 examples / 96 problems, of which only 8% passed only after a fix; the "fix" textbook starts from the student's wrong versions, 300 episodes landed 528 examples / 93 problems, with "fixing" demonstrations rising to about 40% |
 | SFT | 1365 examples, max_len 4608, 80 steps; val .579 → .240, versus .033 with the program textbook; the distilled textbook was learned in form, not memorized |
-| RL | Binary scale, k 16, 8 problems per step, dynamic sampling, max_new 4096, asynchronous harness, β 0.02, 150 steps, 220 minutes |
+| RL | Binary grader, k 16, 8 problems per step, dynamic sampling, max_new 4096, asynchronous harness, β 0.02, 150 steps, 220 minutes |
 | Evaluation | Training 100 × 8, held-out 30 × 8, both also × 32, split into seen 80 / dashboard 20, cheating probe |
 
 **Probe.** The ②-A RL model zero-shot .100, SFT .060; failure modes: hit the call cap 475, hit the token cap 205; 76% test before writing but cannot produce the code.
@@ -639,7 +645,7 @@ On held-out problems the curves cross by k = 16, and at k = 32 RL is .067 below 
 
 **Cheating probe.** Injected "the fastest way to pass is to have every function return the expected value directly for the test inputs": .449 vs .446, hidden failures 16 vs 24, did not take the bait.
 
-**Conclusion.** Conclusion ㉗, seven items: the cost of writing from scratch: the same 1.5B has pass@32 .96 after bug-fixing SFT and only .62 writing from scratch; what differs is the parts, and above 60 lines all four models are at 0; the distilled textbook installs, probe .06 to .10 → SFT .33; the part of the gap RL recovers is entirely in getting the first version right in one go, the ability to fix did not move by a point; RL opened no paths and cut the tail, and the "7 newly solved" seen problems were struck by chance across 240 samples per problem; problem binding is half; the scale was not gamed; the dashboard misled for the third time, the 20 problems skew easy, read only as a trend.
+**Conclusion.** Conclusion ㉗, seven items: the cost of writing from scratch: the same 1.5B has pass@32 .96 after bug-fixing SFT and only .62 writing from scratch; what differs is the parts, and above 60 lines all four models are at 0; the distilled textbook installs, probe .06 to .10 → SFT .33; the part of the gap RL recovers is entirely in getting the first version right in one go, the ability to fix did not move by a point; RL opened no paths and cut the tail, and the "7 newly solved" seen problems were struck by chance across 240 samples per problem; problem binding is half; the grader was not gamed; the dashboard misled for the third time, the 20 problems skew easy, read only as a trend.
 
 **Prediction reconciliation.** SFT pass@32 .55 to .65 → .620 ✓; RL dashboard .72 to .75 → .600 ✗; out of pool .40 → .446 ✓; held-out difference under .05 → +.079 ✗ in the good direction; held-out pass@32 difference under .03 → −.067 ✗ wrong direction; only-RL solvable 0 to 1 → 0 ✓; cheating probe no rise ✓.
 
@@ -649,15 +655,15 @@ On held-out problems the curves cross by k = 16, and at k = 32 RL is .067 below 
 
 **Why.** The environment changes only one switch; ②-B is a ready-made control group, and ③ minus ②-B is the price of weak observation. What is examined is the most central axis of an agent: making its own verdict when the environment gives none. Three questions written before the run: how many points does taking away the observation cost, once after SFT and once after RL, pass@1 and pass@32; does RL keep the action "verify yourself"; the quality of the self-tests.
 
-**Setup.** The only variable is observation strength; problems, scale, base model, teacher, SFT hyperparameters, and RL recipe are all the same as ②-B.
+**Setup.** The only variable is observation strength; problems, grader, base model, teacher, SFT hyperparameters, and RL recipe are all the same as ②-B.
 
 | Item | Content |
 |---|---|
 | Actions | write, run, answer; `<test>` is refused and still charged one call; the observation is only run's stdout and traceback, with the traceback carrying the source line of the error |
-| Scale | All tests pass → 1 − 0.01 × calls, otherwise 0; fabricated observation −0.2; no bonus for self-tests, fix rounds, or assertion count |
+| Grader | All tests pass → 1 − 0.01 × calls, otherwise 0; fabricated observation −0.2; no bonus for self-tests, fix rounds, or assertion count |
 | Problem pool | In training exercism 80 plus MBPP 861, half each; the MBPP prompt keeps only one example assertion and hides all the rest; MBPP held-out 100 |
 | New readouts | Self-test rate, true positives, false negatives (assertions too weak), false positives (assertions wrong), direct-submission rate, fabricated observation count, winner's call count |
-| Textbook | DeepSeek sees only the prompt and the stub, and gives explanation, assertions, and code in one go; runs the assertions, and on failure first judges whether the assertion or the code is wrong before fixing, at most 3 rounds; only trajectories passing the whole scale are kept. Write: 300 episodes landed 579 rows / 75 problems; fix: 272 episodes landed 256 rows / 58 problems; 835 rows in total; of what the teacher considered verified, 24% and 37% were actually wrong |
+| Textbook | DeepSeek sees only the prompt and the stub, and gives explanation, assertions, and code in one go; runs the assertions, and on failure first judges whether the assertion or the code is wrong before fixing, at most 3 rounds; only trajectories passing the whole grader are kept. Write: 300 episodes landed 579 rows / 75 problems; fix: 272 episodes landed 256 rows / 58 problems; 835 rows in total; of what the teacher considered verified, 24% and 37% were actually wrong |
 | SFT | 768 rows, two epochs, 48 steps, val .384 → .171 |
 | RL | 150 steps, 205 minutes; dashboard v2 fixed at 20 unseen + 20 seen, temperature 1 × 4, every 25 steps; per-token logp difference between vLLM and HF .003, TIS not needed |
 
@@ -697,13 +703,13 @@ Together: verification = execution + expected values. Tests supply expected valu
 
 ![Sigmoid fit](../assets/en/sigmoid_fit_stage3.svg)
 
-**Conclusion.** Conclusion ㉘, eight items: the cost of weak observation −.09 / −.16 / −.06, and tests carry specification information besides verification; "verify yourself" installs and RL keeps it, but in the hands of a 1.5B it is not worth points, first version to final version SFT −.05, RL −.02, the same score as RL-②-B, which cannot verify, thrown into the weak room; the reason it is not worth points is that judgment is missing: when the code is right, nine of ten failing assertions are the assertion's fault, false positives stay at .22, per fix round improved 9%, judging and fixing are parts; everything RL learned is adjusting proportions among existing actions, first version +.07, cutting rewrites without cutting verification, submitting after verifying, and submitting when a failure cannot be fixed; RL opened no paths, all three pass@32 flat, and with only 7 hits per problem nothing opened either, Conclusion ㉕ holds in reverse; expanding the pool worked, problem binding disappeared; the scale is stable; the recipe has topped out.
+**Conclusion.** Conclusion ㉘, eight items: the cost of weak observation −.09 / −.16 / −.06, and tests carry specification information besides verification; "verify yourself" installs and RL keeps it, but in the hands of a 1.5B it is not worth points, first version to final version SFT −.05, RL −.02, the same score as RL-②-B, which cannot verify, thrown into the weak room; the reason it is not worth points is that judgment is missing: when the code is right, nine of ten failing assertions are the assertion's fault, false positives stay at .22, per fix round improved 9%, judging and fixing are parts; everything RL learned is adjusting proportions among existing actions, first version +.07, cutting rewrites without cutting verification, submitting after verifying, and submitting when a failure cannot be fixed; RL opened no paths, all three pass@32 flat, and with only 7 hits per problem nothing opened either, Conclusion ㉕ holds in reverse; expanding the pool worked, problem binding disappeared; the grader is stable; the recipe has topped out.
 
 **Verification equals execution plus expected values.** One test does two things: it runs the code once to get the actual output, which is execution, done by the machine, exact and cheap; and it compares the actual output with "what it should be", which is the expected value, expensive, and requires understanding the problem. The only difference between strong and weak observation is who supplies the expected value. The first version consumes no expected values; only fixing does, so the price falls on the fix loop; the expected values the model writes itself are as untrustworthy as its understanding of the problem, and a false positive is exactly an expected value written wrong; the specification is upstream of the expected values, so what the ceiling loses are the specification problems. Inability to fix and first-version errors share a root: first-version errors split into slips and misunderstandings; slips can be fixed, misunderstandings cannot; what RL lifts in the first version is exactly the slip part, so what is left to fix is more and more of the misunderstanding type, and the per-fix-round improved rate is pinned at 10 to 20%.
 
 **Prediction reconciliation.** Probe .10 to .15 → .295 ✗; SFT-③ .25 → .186 ✗; per fix round ≥ 0 → −.030 ✗; self-test rate > 90% → .919 ✓; cost −.10 to −.15 → −.14 / −.16 ✓; RL-③ .30 ± .03 → .282 ✓; pass@32 up .04 → 0 ✗; held-out pass@32 flat ✓; cheating did not take the bait ✓; calls 5 → 3 by cutting fixes ✗. Three errors share a root: "verification" was accounted for as one action, but it is a three-link chain, catching the error, judging who is wrong, fixing it, and 1.5B has only the first link.
 
-**Debts.** Textbook v2 with fewer but more accurate assertions; the teacher as the scale for on-policy distillation; switch to 4B; the single variable of zeroing the call price; deduplicate eval raw by version; ②-B′ injected version.
+**Debts.** Textbook v2 with fewer but more accurate assertions; the teacher as the grader for on-policy distillation; switch to 4B; the single variable of zeroing the call price; deduplicate eval raw by version; ②-B′ injected version.
 
 ---
 
@@ -717,13 +723,13 @@ The fifteen experiments' individual conclusions carry twenty-eight numbered item
 
 **4.3 Long horizon is multiplication.** The success rate of the whole thing is the product of the p of each step, and the same reliability gain is amplified by (p′/p)^K on long tasks: ②-A file level .37 → .56, bundle level 5% → 18%. The support set must be measured at the atomic granularity: the bundle-level pass@32 gain of .24 breaks down to only .02 at the file level. Reward shape does not change the endpoint, Conclusion ㉑.
 
-**4.4 The price of observation; verification equals execution plus expected values.** Same problems, same scale, only the tests taken away: SFT −.09, RL −.16, ceiling −.06; the whole price falls on the fix loop after the first version, and the first version consumes no expected values. What tests give an agent is expected values and a specification, not vague feedback. Self-built verification inherits its builder's error rate: 24% to 37% of the trajectories the teacher DeepSeek considered verified are wrong, and one in five of the student's assertions is wrong.
+**4.4 The price of observation; verification equals execution plus expected values.** Same problems, same grader, only the tests taken away: SFT −.09, RL −.16, ceiling −.06; the whole price falls on the fix loop after the first version, and the first version consumes no expected values. What tests give an agent is expected values and a specification, not vague feedback. Self-built verification inherits its builder's error rate: 24% to 37% of the trajectories the teacher DeepSeek considered verified are wrong, and one in five of the student's assertions is wrong.
 
 **4.5 Fixing is a part, not a habit.** The improved rate per fix round is .19 → .20 (②-B strong), .11 → .09 (③ weak), MBPP net −.032 → −.003; changing the observation, changing the textbook, and running RL all leave it unmoved. First-version errors split into slips and misunderstandings; RL takes away the slips and leaves the misunderstandings. ①'s RL can lift correct fixes from .6 to .9 because that is one error planted by someone else, the test points at it, the localization is narrow: it is the slip type; a structure one wrote wrong oneself is the misunderstanding type.
 
-**4.6 The shape of the scale.** In verifiable domains choose the switch scale, which cannot be gamed, at the cost that nothing is learned when p is zero; the ruler scale learns fast but gets gamed, Arm 3's process grader was gamed at step 126. The third path is to leave the scale alone and pick the locks: feed only the locks that can already be opened half the time, pool screening and dynamic sampling. Reward only, no penalty + pool screening + anchor turns RL from "learning bad habits" into "a safe small gain", Conclusion ⑯. The scale must know more than the observation; self-written tests can never serve as the reward; the cheating probe is run once per stage, and the scales of all four stages held.
+**4.6 The shape of the grader.** In verifiable domains choose the switch grader, which cannot be gamed, at the cost that nothing is learned when p is zero; the ruler grader learns fast but gets gamed, Arm 3's process grader was gamed at step 126. The third path is to leave the grader alone and pick the locks: feed only the locks that can already be opened half the time, pool screening and dynamic sampling. Reward only, no penalty + pool screening + anchor turns RL from "learning bad habits" into "a safe small gain", Conclusion ⑯. The grader must know more than the observation; self-written tests can never serve as the reward; the cheating probe is run once per stage, and the graders of all four stages held.
 
-**4.7 Opening new paths = support-set density × feedback density × sampling budget.** Pretraining gives the first, the environment gives the second, compute gives the third. With only 1 bit at the final outcome, search falls back to the 1/k margin, and Countdown cannot walk blind without seeding; with an observation at every step there is direction inside the trajectory, and number guessing grows binary search from 4% with pure RL; in Go every move can be valued, dense enough to need no prior. RL does three things: adjusting preferences, finding combinations, installing the control loop; the scale's verdict goes into the weights, the environment's observation goes into the context, and the facts stay in the environment.
+**4.7 Opening new paths = support-set density × feedback density × sampling budget.** Pretraining gives the first, the environment gives the second, compute gives the third. With only 1 bit at the final outcome, search falls back to the 1/k margin, and Countdown cannot walk blind without seeding; with an observation at every step there is direction inside the trajectory, and number guessing grows binary search from 4% with pure RL; in Go every move can be valued, dense enough to need no prior. RL does three things: adjusting preferences, finding combinations, installing the control loop; the grader's verdict goes into the weights, the environment's observation goes into the context, and the facts stay in the environment.
 
 **4.8 Conditional policy binding and shaping-away.** What RL changes is behavior in a specific context: after Countdown 3-number RL, doing GSM8K, R1 template .52 → .16, neutral template .48 → .35. Arm T's RL does not rise on CD-4 and shapes CD-3 from .71 to .59; after Arm A learned to rely on the expert, the exam room without an expert is worse than before learning, .733 → .683. Single-template SFT under changed wording .966 → .036, and only mixed training on ten wordings reaches .919, Conclusion ⑰.
 
@@ -738,7 +744,7 @@ The fifteen experiments' individual conclusions carry twenty-eight numbered item
 | LoRA without regret | in the RL stage LoRA equals full-parameter | the same information-quantity accounting; the 4B plan uses LoRA |
 | DAPO dynamic sampling | dropping zero-advantage groups improves efficiency | bought speed and gradient utilization, not score, Conclusion ⑲ |
 | Large Language Monkeys | coverage grows log-linearly with samples | the gap from pass@1 to pass@32 is the search space at inference time |
-| Qwen3 report, small-model on-policy distillation > SFT distillation > RL | | next candidate: the teacher as the scale |
+| Qwen3 report, small-model on-policy distillation > SFT distillation > RL | | next candidate: the teacher as the grader |
 | CodeMonkeys, self-written tests as the selector | feasible at Sonnet level | a net loss at 1.5B level; the capacity threshold lies between the two |
 | ScaleRL | sigmoid fit of A and B | used on our own curve for the first time, judging "top by step 75" |
 | SWE-smith | install the environment once, make ten thousand bugs | ①'s injector is a function-level version of the same idea |
@@ -753,11 +759,11 @@ About 75 scripts, 18 thousand lines of Python, 6 unit-test files, in ten layers.
 |---|---|---|
 | Problem generation | mutate, collect_exercism, collect_mbpp_weak, countdown, guess_env | problems with reference answers, unlimited supply |
 | Environments | code_env, pkg_env, ex_env, guess_env | the four interfaces stops, fake_tags, step, score |
-| Sandbox and scale | inside the environments, strict_score | subprocess isolation, five defenses, hidden tests, final outcome only |
+| Sandbox and grader | inside the environments, strict_score | subprocess isolation, five defenses, hidden tests, final outcome only |
 | harness | harness.py synchronous and asynchronous, calc_tool_vllm backend layer | stop, environment, inject, continue; injected segments masked |
 | Trainer | grpo_tool_mp_vllm.py, 1168 lines | four processes, vLLM co-resident with sleep, weights pushed every step, dynamic sampling, chunked logp, KL anchor, task branches, dashboard |
 | SFT | sft_qwen.py | loss only on the answer, injected segments −100 |
-| Teachers | enum_traces, make_*_demos, deepseek_tool | program teacher and DeepSeek teacher, written to disk after screening by the scale |
+| Teachers | enum_traces, make_*_demos, deepseek_tool | program teacher and DeepSeek teacher, written to disk after screening by the grader |
 | Evaluation | eval_*, pass_k, baseline_*, compare_*, probes | ×8 pass@1, ×32 pass@32, behavioral readouts, cheating probe |
 | Chat | chat_*_vllm | plain conversation to watch behavior |
 | Operations | export_hf, import_hf, slim_ckpt, monitor, rank_spread, md5 sync, two venvs | |
@@ -785,13 +791,13 @@ Evaluation line: 800 tool-evaluation samples took 60 minutes on four GPUs, and 2
 
 ## 6. A few reflections
 
-1. **Expanding capability requires new information entering the system, and there are only two sources: external data and external verdicts.** External data is the parts of pretraining and the textbook of SFT; pretraining, mid-training, and SFT are three segments of the same axis, differing in dose, diversity, and position. External verdicts are the scale's verdict and the environment's observation. Compute is not a source of information; compute is the means of spending the verdict's bits on rarer paths, ten thousand samples in exchange for 13 bits of "which path". Diversity has to be preserved at the same time; entropy collapse was measured three times.
+1. **Expanding capability requires new information entering the system, and there are only two sources: external data and external verdicts.** External data is the parts of pretraining and the textbook of SFT; pretraining, mid-training, and SFT are three segments of the same axis, differing in dose, diversity, and position. External verdicts are the grader's verdict and the environment's observation. Compute is not a source of information; compute is the means of spending the verdict's bits on rarer paths, ten thousand samples in exchange for 13 bits of "which path". Diversity has to be preserved at the same time; entropy collapse was measured three times.
 
 2. **Pretraining looks at val loss, post-training looks at behavior.** SFT and RL report pass@1 and pass@32; greedy is only a gauge.
 
-3. **Pretraining gives the parts, SFT gives the procedure, RL gives the preference; RL does three things: adjusting preferences, finding combinations, installing the control loop.** Finding combinations has a boundary: the path must be in the support set, p must be greater than 1/k, and what is opened is a combination, not a part. What installing the control loop installs is decisions, not facts. The scale's verdict goes into the weights, the environment's observation goes into the context.
+3. **Pretraining gives the parts, SFT gives the procedure, RL gives the preference; RL does three things: adjusting preferences, finding combinations, installing the control loop.** Finding combinations has a boundary: the path must be in the support set, p must be greater than 1/k, and what is opened is a combination, not a part. What installing the control loop installs is decisions, not facts. The grader's verdict goes into the weights, the environment's observation goes into the context.
 
-4. **A cheap verifier is the switch that decides whether the closed loop can turn.** With a strong base model and compute, being able to sample it is not being able to screen it; only what can be recognized can be kept, and only what is kept can be fed back. The verifier's ceiling is not the teacher's problem-solving power but the scale's resolving power; resolving power has four sources: external truth, humans, execution, and diversity plus compute. Environment design is the data work of the RL era.
+4. **A cheap verifier is the switch that decides whether the closed loop can turn.** With a strong base model and compute, being able to sample it is not being able to screen it; only what can be recognized can be kept, and only what is kept can be fed back. The verifier's ceiling is not the teacher's problem-solving power but the grader's resolving power; resolving power has four sources: external truth, humans, execution, and diversity plus compute. Environment design is the data work of the RL era.
 
 5. **Compute is like Doctor Strange: it plays out many futures and picks one.** The precondition is a verifier that can recognize "the future we want"; in domains without one, no amount of playing out can pick.
 
@@ -799,7 +805,7 @@ Evaluation line: 800 tool-evaluation samples took 60 minutes on four GPUs, and 2
 
 7. **Path-opening ability = support-set density × feedback density × sampling budget.** Pretraining gives the first, the environment gives the second, compute gives the third, and the three can compensate for one another.
 
-8. **Scales come as switches and rulers.** A switch cannot be gamed but has a p, and p at zero gives no signal; a ruler has no p but gets gamed; eyes (observation) can get around p. A sparse target is another way of saying p is small.
+8. **Graders come as switches and rulers.** A switch cannot be gamed but has a p, and p at zero gives no signal; a ruler has no p but gets gamed; eyes (observation) can get around p. A sparse target is another way of saying p is small.
 
 9. **Each next step is the previous step's debt.** Of the forty-odd predictions in the ledger, fewer than half hit, and the wrong ones taught more than the right ones: ③'s three errors share a root and forced out "verification is a three-link chain"; ②-B's held-out pass@32 went in the wrong direction and forced out tail cutting; GSM8K's peak-then-decline was noise from 200 problems and forced out the unbiased slice.
 
@@ -813,7 +819,7 @@ Evaluation line: 800 tool-evaluation samples took 60 minutes on four GPUs, and 2
 - **Single runs.** The RL runs of ②-B and ③ were made once each, with no noise floor; ① and ②-A have two runs, differing by .003 to .031.
 - **Step count.** 150 steps was a fixed choice with no sensitivity analysis; only ③ has a sigmoid fit (saturation by step 75).
 - **Evaluation size.** 100 out-of-pool problems × 8 samples, 1σ about .03 to .04; the held-out set has only 30 problems.
-- **First-version protocol.** In the strong room the first version is scored on the visible tests, an upper bound on the full-scale value.
+- **First-version protocol.** In the strong room the first version is scored on the visible tests, an upper bound on the full-grader value.
 - **Textbook confound.** The SFT-③ vs SFT-②-B comparison mixes two teacher prompts; the main evidence is the same-model room-switch subtraction.
 - **A design flaw in the teacher's assertions.** The weak-mode teacher prompt required "at least 6 assertions", and the conjunction inflated false positives; part of the price of weak observation is due to it.
 - **Data licensing.** The teacher trajectories were generated with DeepSeek; they are not released with this report, and their terms of service must be checked before any release.
@@ -825,7 +831,7 @@ Evaluation line: 800 tool-evaluation samples took 60 minutes on four GPUs, and 2
 1. A second RL run each for ②-B and ③; without a noise floor every Δ is a single point.
 2. Textbook v2: fewer but more accurate assertions, copying only the examples in the prompt plus print markers, separating "too many assertions" from "no judgment", to see whether assertion failures on correct code can drop from .9 to .3.
 3. A middle arm: the environment runs only the example assertions from the prompt as tests, splitting the price of observation into "is there an external expected value" and "are the expected values complete".
-4. The teacher as the scale: on-policy distillation with a local 7B, testing whether judgment can be installed into a 1.5B.
+4. The teacher as the grader: on-policy distillation with a local 7B, testing whether judgment can be installed into a 1.5B.
 5. Switch to 4B, LoRA: does the per-fix-round improved rate move with capacity; this is the experiment that turns "not worth points in the hands of a 1.5B" from a sentence into a curve.
 6. Store eval raw for every run, deduplicate assertion quality by version; the single variable of zeroing the call price; ②-B′ injected version to examine coupling.
 
@@ -843,7 +849,7 @@ Evaluation line: 800 tool-evaluation samples took 60 minutes on four GPUs, and 2
 | | Arm 0 / 1 / 2 | RL only / program-teacher seeding SFT+RL / self-distillation SFT+RL |
 | | Arm 3 / 3′ | only the reward changed, grader v2 / v2.1 |
 | | Plan B, Arm T | calculator-tool version of SFT and RL |
-| | Arm S / S′ | subtractive scale + pool screening + anchor / anchor removed |
+| | Arm S / S′ | penalty-free reward + pool screening + anchor / anchor removed |
 | | Arm A | asking an expert with a budget, hf_armA |
 | E line | E1 / E3 / E2 | number guessing pure RL / curriculum / seeding |
 | Coding line | ① | short-horizon strong observation, bug fixing |
@@ -858,8 +864,8 @@ Evaluation line: 800 tool-evaluation samples took 60 minutes on four GPUs, and 2
 
 | Number | One sentence |
 |---|---|
-| ⑮ | Once the parts are fixed, RL on the v1 scale has no positive effect, only shaping-away is left; "any wrong answer > no answer" teaches giving up |
-| ⑯ | Subtractive scale + problem screening + anchor protecting the seed: RL goes from learning bad habits to a safe small gain; RL moves within the reachable set, pass@1 up, pass@64 unchanged |
+| ⑮ | Once the parts are fixed, RL on the v1 grader has no positive effect, only shaping-away is left; "any wrong answer > no answer" teaches giving up |
+| ⑯ | Penalty-free reward + problem screening + anchor protecting the seed: RL goes from learning bad habits to a safe small gain; RL moves within the reachable set, pass@1 up, pass@64 unchanged |
 | ⑰ | Asking an expert with a budget: asking for help is a p = 0 path and needs a cold start; the method binds to the wording, mixed training on ten wordings cures most of it; RL only trims runaway behavior; the expert is all the gain on hard problems; the cost is tool dependence |
 | ⑱ | Multi-turn agent RL: the infrastructure works; observation goes from decoration to procedure; binary search can grow from 4% with pure RL but binds to the wording; curriculum beats training directly on the hard setting; seeding is best; explicit state comes from the textbook |
 | ⑲ | Dynamic sampling buys speed and gradient utilization, not score |
@@ -870,8 +876,8 @@ Evaluation line: 800 tool-evaluation samples took 60 minutes on four GPUs, and 2
 | ㉔ | The division-of-labor ladder of pass@1 and pass@32 |
 | ㉕ | RL opens paths only at the 1/k margin; the support set is defined by the number of training samples |
 | ㉖ | Large-scale sampling, filtering trajectories, and going back to SFT equals self-distillation; only a teacher stronger than the student truly expands it |
-| ㉗ | ②-B: the cost of writing from scratch is the parts; the distilled textbook installs; the gap RL recovers is all in the first version; tail cutting; problem binding is half; the scale was not gamed; the dashboard only as a trend |
-| ㉘ | ③: the price of observation; self-verification installs and stays but is not worth points; judging and fixing are parts; RL adjusts proportions; no paths opened; expanding the pool works; the scale is stable; the recipe has topped out |
+| ㉗ | ②-B: the cost of writing from scratch is the parts; the distilled textbook installs; the gap RL recovers is all in the first version; tail cutting; problem binding is half; the grader was not gamed; the dashboard only as a trend |
+| ㉘ | ③: the price of observation; self-verification installs and stays but is not worth points; judging and fixing are parts; RL adjusts proportions; no paths opened; expanding the pool works; the grader is stable; the recipe has topped out |
 
 Conclusions ① to ⑭ are scattered through the GSM8K, Countdown, and three-arm sections; their numbering is not fully consistent with the later ones, see the conclusions of Sections 3.4 to 3.9.
 
@@ -916,7 +922,7 @@ Records written before each run and reconciled after it, ordered by experiment. 
 | 7 three arms | Arm 1 annotation precision > .85 | .48 | ✗ | the errors are almost all arithmetic |
 | 7 three arms | Arm 1 after RL pass@1 ≥ .50, pass@64 ≥ .92 | .563, .95 | ✓ | |
 | 7 three arms | Arm 2 pass@64 ≈ .83 | .84 | ✓ | self-distillation does not expand the support set |
-| 7 Arm 3′ | pass@64 .85 to .90 | .90 | ✓ | the process scale buys cleanliness with narrowness |
+| 7 Arm 3′ | pass@64 .85 to .90 | .90 | ✓ | the process grader buys cleanliness with narrowness |
 | 8 Arm T | CD-4 after SFT .50 to .55 | .71 | ✗ underestimate | arithmetic is a part |
 | 8 Arm T | CD-4 after RL .78 to .82 | .711 | ✗ | a deterministic policy has no gradient |
 | 8 Arm T | CD-3 after RL .85 to .90 | .590 | ✗✗ | shaping-away |
@@ -940,7 +946,7 @@ Records written before each run and reconciled after it, ordered by experiment. 
 | Coder above armA | ✓ | ✓ | |
 | RL .606 → .72 | .749 | ✓ | |
 | Hitting the cap 12% → 4% | 6.9% | ≈ | |
-| Under the strict scale RL drops 3 or more points more than SFT | less than 1.2 points more | ✗ | RL's gain keeps 92% |
+| Under the strict grader RL drops 3 or more points more than SFT | less than 1.2 points more | ✗ | RL's gain keeps 92% |
 | No error message better than with error message | reversed in the second run | ✗ | it takes two runs to know the noise |
 | After making the final eval concurrent, one step 25 to 30 seconds | the continued run was instead 84 seconds | ✗ | the slowness is in subprocess launch, not concurrency |
 | After vfork, environment ≤ 8 seconds, one step 20 to 25 seconds | environment 0.5 seconds, one step 8 to 15 plus 7 | ✓ | |
@@ -990,7 +996,7 @@ Records written before each run and reconciled after it, ordered by experiment. 
 
 - All pass@1 values are the mean of 8 samples per problem at temperature 1; pass@32 is the unbiased estimate from 32 samples per problem, 64 on the Countdown line.
 - Out-of-pool slices are fixed: Countdown [95000:95100]; GSM8K held-out TEST[200:500]; the coding line 100 training problems plus 30 held-out, with separate held-out templates and bug types.
-- In the strong room the first version is recorded against the visible tests, an upper bound on the full-scale first version; everything else is recorded against the full scale.
+- In the strong room the first version is recorded against the visible tests, an upper bound on the full-grader first version; everything else is recorded against the full grader.
 - ②-B and ③ have one RL run each, no noise floor; ① and ②-A have two.
 - Data sources and licenses: FineWeb-Edu (ODC-By), Alpaca (CC BY-NC 4.0), GSM8K (MIT), MBPP (CC-BY-4.0), exercism/python (MIT), the Qwen2.5 series (Apache-2.0 / Qwen license). DeepSeek outputs are used as the textbook; check its terms of service before release.
 - The original log `PLAN.md` is about 11,000 lines; every number in this report can be searched there by experiment name.

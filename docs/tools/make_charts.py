@@ -108,6 +108,20 @@ T = {
     "猜中率（100 个秘密数 × 8，温度 1）": "success rate (100 secret numbers × 8, temperature 1)",
     "猜数字：撒种 200 条示范 2 分钟，超过两条 RL 臂；N=1000 的差距来自「写下区间」": "Number guessing: 200 seeded demos in 2 minutes beat both RL arms; the N=1000 gap comes from writing the interval down",
 }
+T.update({
+    "改奖励公式去管过程：两次都被钻，第二次真实成绩下降": "Rewriting the reward to police the process: gamed twice, real results fell the second time",
+    "v2 秤，臂 3：过程罚项全归零，正确率没动": "Grader v2, Arm 3: every penalized process term drops to zero, accuracy does not move",
+    "起点": "start", "第 126 步": "step 126",
+    "错步率": "wrong-step\nrate", "假宣告率": "false-claim\nrate", "正确率\n（仪表盘）": "accuracy\n(dashboard)",
+    "标注从每条 4.9 条掉到 0.2：模型不再写秤能判的格式，罚项没东西可判": "annotations per attempt 4.9 → 0.2: the model stopped writing in the format the grader could read, so there was nothing left to penalize",
+    "v2.1 秤，臂 3′ 对臂 1：过程指标全更好，结果指标全更差": "Grader v2.1, Arm 3′ vs Arm 1: every process metric better, every outcome metric worse",
+    "老秤 v1（臂 1）": "old grader v1 (Arm 1)", "补过洞的新秤 v2.1（臂 3′）": "patched grader v2.1 (Arm 3′)",
+    "假宣告\n（低好）": "false claims\n(lower better)", "步骤算对率": "step\naccuracy", "数字用全": "all numbers\nused",
+    "pass@1\nCD-4": "pass@1\nCD-4", "pass@8\nCD-3": "pass@8\nCD-3", "pass@64\nCD-3 天花板": "pass@64\nCD-3 ceiling",
+    "过程指标：更好": "process metrics: better", "结果指标：更差": "outcome metrics: worse",
+    "同起点、同 300 步、只换秤；池外 100 题。罚错误等于罚尝试：硬题上结果分没有梯度，按行的罚成了全部信号，模型放弃了乘除那一步。": "Same start, same 300 steps, only the grader changed; 100 held-out problems. Punishing mistakes is punishing attempts: on hard problems the outcome reward gives no gradient, the per-line penalties become the only signal, and the model stops attempting the multiplication phase.",
+})
+
 def _(s):
     return T.get(s, s) if EN else s
 
@@ -267,6 +281,39 @@ def coding_passk():
 coding_passk()
 
 # 13 猜数字三臂
+# 10 三版秤：改奖励公式去管过程，两次被钻（数据：PLAN 7021–7040 臂 3 训练表；7150–7200 臂 1 vs 臂 3′ 池外）
+def graders():
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12.2, 4.9), gridspec_kw=dict(width_ratios=[1, 1.6]))
+    # 左：臂 3（v2 秤，从 mix4-300 起），起点 vs 第 126 步，训练探针
+    names = ["错步率", "假宣告率", "正确率\n（仪表盘）"]; start = [.50, .17, .45]; late = [.02, .00, .45]
+    xs = list(range(3)); w = 0.36
+    ax1.bar([x - w/2 for x in xs], start, w, color=TINT, edgecolor=STRONG, linewidth=0.6, label=_("起点"))
+    ax1.bar([x + w/2 for x in xs], late, w, color=STRONG, label=_("第 126 步"))
+    for x, a, b in zip(xs, start, late):
+        ax1.text(x - w/2, a + .012, f"{a:.2f}", ha="center", fontsize=9.5, color=INK); ax1.text(x + w/2, b + .012, f"{b:.2f}", ha="center", fontsize=9.5, color=INK, fontweight="bold")
+    ax1.set_xticks(xs); ax1.set_xticklabels([_(n) for n in names], fontsize=9.5); ax1.set_ylim(0, .62)
+    ax1.yaxis.grid(True, color=GRID); ax1.set_axisbelow(True); ax1.legend(fontsize=9, frameon=False, loc="upper right")
+    ax1.set_title(_("v2 秤，臂 3：过程罚项全归零，正确率没动"), loc="left", fontsize=11.5, pad=8)
+    ax1.text(0.0, -0.2, _("标注从每条 4.9 条掉到 0.2：模型不再写秤能判的格式，罚项没东西可判"), transform=ax1.transAxes, fontsize=8.6, color=MUTED, wrap=True)
+    # 右：臂 1（v1）vs 臂 3′（v2.1），同起点 sft1，同 300 步，池外 100 题
+    mnames = ["假宣告\n（低好）", "步骤算对率", "数字用全", "pass@1\nCD-4", "pass@8\nCD-3", "pass@64\nCD-3 天花板"]
+    v1 = [.26, .525, .921, .563, .740, .950]; v21 = [.06, .657, .970, .544, .630, .900]
+    xs2 = [0, 1, 2, 3.5, 4.5, 5.5]
+    ax2.bar([x - w/2 for x in xs2], v1, w, color="#B9BEC6", label=_("老秤 v1（臂 1）"))
+    ax2.bar([x + w/2 for x in xs2], v21, w, color=WEAK, label=_("补过洞的新秤 v2.1（臂 3′）"))
+    for x, a, b in zip(xs2, v1, v21):
+        ax2.text(x - w/2, a + .012, f"{a:.2f}", ha="center", fontsize=9, color=INK); ax2.text(x + w/2, b + .012, f"{b:.2f}", ha="center", fontsize=9, color=INK, fontweight="bold")
+    ax2.set_xticks(xs2); ax2.set_xticklabels([_(n) for n in mnames], fontsize=9); ax2.set_ylim(0, 1.38)
+    ax2.yaxis.grid(True, color=GRID); ax2.set_axisbelow(True); ax2.legend(fontsize=9, frameon=False, loc="upper left", ncol=2, bbox_to_anchor=(0.0, 1.0))
+    for lo, hi, label, col in ((-.45, 2.45, "过程指标：更好", "#2E7D4F"), (3.05, 5.95, "结果指标：更差", "#B3261E")):
+        ax2.plot([lo, hi], [1.06, 1.06], color=col, linewidth=1.2); ax2.text((lo + hi) / 2, 1.08, _(label), ha="center", fontsize=9.5, color=col, fontweight="600")
+    ax2.set_title(_("v2.1 秤，臂 3′ 对臂 1：过程指标全更好，结果指标全更差"), loc="left", fontsize=11.5, pad=8)
+    fig.suptitle(_("改奖励公式去管过程：两次都被钻，第二次真实成绩下降"), x=0.01, ha="left", fontsize=13)
+    fig.tight_layout(rect=(0, 0.04, 1, 0.95))
+    fig.text(0.01, -0.03, _("同起点、同 300 步、只换秤；池外 100 题。罚错误等于罚尝试：硬题上结果分没有梯度，按行的罚成了全部信号，模型放弃了乘除那一步。"), fontsize=9, color=MUTED)
+    save(fig, "graders.svg")
+graders()
+
 def guess_number():
     arms = ["起点，没训练", "只做 RL", "先易后难的 RL\n（课程）", "用示范做 SFT", "示范 SFT，再 RL"]
     train = [.043, .632, .838, .976, .996]; held = [None, .359, .512, .873, .926]; big = [None, .142, .171, .621, .713]
