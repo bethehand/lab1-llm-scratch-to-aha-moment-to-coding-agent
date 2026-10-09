@@ -16,6 +16,9 @@ export HF_ENDPOINT=https://huggingface.co
 HFCLI=$(command -v hf || command -v huggingface-cli)
 # Model cards are written into a staging directory of per-file symlinks, so the exported checkpoint directories are never modified.
 STAGE=${STAGE:-_hf_stage}
+# JOBS>1 uploads several repositories at once (each in its own process, log in $STAGE/upload_<dir>.log). On high-latency links
+# a single upload stream is slow; parallel repos plus HF_XET_HIGH_PERFORMANCE=1 multiply throughput.
+JOBS=${JOBS:-1}
 
 CODER="Qwen/Qwen2.5-Coder-1.5B"; BASE15="Qwen/Qwen2.5-1.5B"
 declare -A DESC BASE
@@ -71,7 +74,14 @@ Evaluate it yourself from the repository root, for example \`python3 bench_obser
 Weights are derived from ${BASE[$D]} and remain under the Qwen license.
 EOF
   echo "== $D -> $REPO"
-  "$HFCLI" upload "$REPO" "$STAGE/$D" . --repo-type model --commit-message "upload $D from the lab machine"
-  echo "== uploaded $REPO"
+  if [ "$JOBS" -le 1 ]; then
+    "$HFCLI" upload "$REPO" "$STAGE/$D" . --repo-type model --commit-message "upload $D from the lab machine"
+    echo "== uploaded $REPO"
+  else
+    while [ "$(jobs -rp | wc -l)" -ge "$JOBS" ]; do sleep 5; done
+    ( if "$HFCLI" upload "$REPO" "$STAGE/$D" . --repo-type model --commit-message "upload $D from the lab machine" > "$STAGE/upload_$D.log" 2>&1
+      then echo "== uploaded $REPO"; else echo "== FAILED $REPO (see $STAGE/upload_$D.log)"; fi ) &
+  fi
 done
+wait
 echo "done; update README.md 'Where --init comes from' with the links"
