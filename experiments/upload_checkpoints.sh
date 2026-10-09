@@ -15,6 +15,8 @@ cd "$(dirname "$0")/.."
 export HF_ENDPOINT=https://huggingface.co
 # Each repository is uploaded by experiments/hf_upload.py (official endpoint forced; optional hf_transfer with a connection cap).
 # Slow long-haul link? HF_HUB_DISABLE_XET=1 HF_HUB_ENABLE_HF_TRANSFER=1 HFT_MAX_FILES=16 (pip install hf_transfer), JOBS=1.
+# Unreliable link? RESHARD=400MB re-saves model.safetensors as shards (RESHARD_PY = a python with torch + safetensors) so an
+# interrupted upload resumes shard by shard; the staged shards are deleted after a successful upload.
 PY=${PY:-python3}
 # Model cards are written into a staging directory of per-file symlinks, so the exported checkpoint directories are never modified.
 STAGE=${STAGE:-_hf_stage}
@@ -56,6 +58,9 @@ for D in $LIST; do
   rm -rf "$STAGE/$D"; mkdir -p "$STAGE/$D"
   for f in "$D"/*; do
     b=$(basename "$f"); [ "$b" = README.md ] && continue
+    if [ -n "${RESHARD:-}" ] && [ "$b" = model.safetensors ]; then         # shards resume after an interrupted upload
+      "${RESHARD_PY:-python3}" experiments/reshard.py "$(readlink -f "$f")" "$STAGE/$D" "$RESHARD"; continue
+    fi
     ln -s "$(readlink -f "$f")" "$STAGE/$D/$b"
   done
   cat > "$STAGE/$D/README.md" <<EOF
@@ -77,7 +82,7 @@ Weights are derived from ${BASE[$D]} and remain under the Qwen license.
 EOF
   echo "== $D -> $REPO"
   if [ "$JOBS" -le 1 ]; then
-    if "$PY" experiments/hf_upload.py "$REPO" "$STAGE/$D" "upload $D from the lab machine"; then echo "== uploaded $REPO"
+    if "$PY" experiments/hf_upload.py "$REPO" "$STAGE/$D" "upload $D from the lab machine"; then echo "== uploaded $REPO"; [ -n "${RESHARD:-}" ] && rm -rf "$STAGE/$D"
     else echo "== FAILED $REPO"; FAILED="${FAILED:-} $D"; fi
   else
     while [ "$(jobs -rp | wc -l)" -ge "$JOBS" ]; do sleep 5; done
