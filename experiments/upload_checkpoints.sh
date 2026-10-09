@@ -11,6 +11,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 : "${HF_USER:?set HF_USER to your Hugging Face account name}"
+# Mirrors such as hf-mirror.com are download-only; uploads, and the token that goes with them, must go to the official endpoint.
+export HF_ENDPOINT=https://huggingface.co
+HFCLI=$(command -v hf || command -v huggingface-cli)
+# Model cards are written into a staging directory of per-file symlinks, so the exported checkpoint directories are never modified.
+STAGE=${STAGE:-_hf_stage}
 
 CODER="Qwen/Qwen2.5-Coder-1.5B"; BASE15="Qwen/Qwen2.5-1.5B"
 declare -A DESC BASE
@@ -43,7 +48,12 @@ LIST="$TIER1"; [ "${ALL:-0}" = 1 ] && LIST="$TIER1 $TIER2"
 for D in $LIST; do
   [ -d "$D" ] || { echo "skip $D (not here)"; continue; }
   REPO="$HF_USER/lab1-${D#hf_}"
-  cat > "$D/README.md" <<EOF
+  rm -rf "$STAGE/$D"; mkdir -p "$STAGE/$D"
+  for f in "$D"/*; do
+    b=$(basename "$f"); [ "$b" = README.md ] && continue
+    ln -s "$(readlink -f "$f")" "$STAGE/$D/$b"
+  done
+  cat > "$STAGE/$D/README.md" <<EOF
 ---
 license: apache-2.0
 base_model: ${BASE[$D]}
@@ -61,6 +71,7 @@ Evaluate it yourself from the repository root, for example \`python3 bench_obser
 Weights are derived from ${BASE[$D]} and remain under the Qwen license.
 EOF
   echo "== $D -> $REPO"
-  huggingface-cli upload "$REPO" "$D" . --repo-type model --commit-message "upload $D from the lab machine"
+  "$HFCLI" upload "$REPO" "$STAGE/$D" . --repo-type model --commit-message "upload $D from the lab machine"
+  echo "== uploaded $REPO"
 done
 echo "done; update README.md 'Where --init comes from' with the links"
