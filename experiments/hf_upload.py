@@ -5,20 +5,20 @@
 
 Always talks to the official endpoint: download mirrors such as hf-mirror.com must never receive the token.
 
-On slow long-haul links every single TCP connection gets squeezed to ~100 KB/s, so parallel connections are what helps:
+Built for a slow, lossy, intermittently connected link (the lab machine this repository was trained on):
     HF_HUB_DISABLE_XET=1 HF_HUB_ENABLE_HF_TRANSFER=1   upload the LFS file in parallel parts with hf_transfer
-    HFT_MAX_FILES=16                                    cap on parallel connections (huggingface_hub hard-codes 128,
-                                                        which floods a shared uplink and gains nothing once it is full)
-    HFT_MAX_RETRIES=50                                  retries per part (huggingface_hub hard-codes 5; one part failing
-                                                        5 times aborts the whole file and a new attempt starts from zero)
-    HF_UPLOAD_ATTEMPTS=3                                whole-folder attempts before giving up
+    HFT_MAX_FILES=16          cap on parallel connections (huggingface_hub hard-codes 128, which floods a shared uplink)
+    HFT_MAX_RETRIES=50        retries per part (huggingface_hub hard-codes 5; one part failing 5 times aborts the file)
+    HF_UPLOAD_ATTEMPTS=10     whole-folder attempts; a new attempt restarts the LFS file from zero
+    HF_WAIT_HOURS=12          before each attempt, wait (probing every 2 minutes) for the Hub to become reachable
 """
 import os, sys, time, functools
 
 os.environ["HF_ENDPOINT"] = "https://huggingface.co"
 CAP = max(1, int(os.environ.get("HFT_MAX_FILES", "16")))
 RETRIES = max(5, int(os.environ.get("HFT_MAX_RETRIES", "50")))
-ATTEMPTS = max(1, int(os.environ.get("HF_UPLOAD_ATTEMPTS", "3")))
+ATTEMPTS = max(1, int(os.environ.get("HF_UPLOAD_ATTEMPTS", "10")))
+WAIT_S = float(os.environ.get("HF_WAIT_HOURS", "12")) * 3600
 
 try:
     import hf_transfer
@@ -35,20 +35,42 @@ try:
 except ImportError:
     pass
 
+import requests
 from huggingface_hub import HfApi
+
+
+def log(msg):
+    print(time.strftime("%H:%M:%S"), msg, flush=True)
+
+
+def wait_for_hub():
+    t0 = time.time(); warned = False
+    while True:
+        try:
+            if requests.head("https://huggingface.co", timeout=15).status_code < 500:
+                if warned: log(f"hub reachable again after {time.time() - t0:.0f} s")
+                return
+        except requests.RequestException:
+            pass
+        if time.time() - t0 > WAIT_S:
+            raise SystemExit(f"hub unreachable for {WAIT_S / 3600:.1f} h, giving up")
+        if not warned: log("hub unreachable, probing every 2 minutes"); warned = True
+        time.sleep(120)
+
 
 repo, folder = sys.argv[1], sys.argv[2]
 message = sys.argv[3] if len(sys.argv) > 3 else f"upload {os.path.basename(os.path.normpath(folder))}"
 api = HfApi()
-api.create_repo(repo, repo_type="model", exist_ok=True)
 for attempt in range(1, ATTEMPTS + 1):
+    wait_for_hub()
     t0 = time.time()
     try:
+        api.create_repo(repo, repo_type="model", exist_ok=True)
         info = api.upload_folder(repo_id=repo, folder_path=folder, repo_type="model", commit_message=message)
-        print(f"uploaded {folder} -> {info} (attempt {attempt}, {time.time() - t0:.0f} s)", flush=True)
+        log(f"uploaded {folder} -> {info} (attempt {attempt}, {time.time() - t0:.0f} s)")
         break
-    except Exception as e:                      # network failures on long uploads; a new attempt restarts the LFS file
-        print(f"attempt {attempt}/{ATTEMPTS} failed after {time.time() - t0:.0f} s: {type(e).__name__}: {e}", flush=True)
+    except Exception as e:                      # network failures on long uploads
+        log(f"attempt {attempt}/{ATTEMPTS} failed after {time.time() - t0:.0f} s: {type(e).__name__}: {str(e)[:300]}")
         if attempt == ATTEMPTS:
             raise
         time.sleep(60)
