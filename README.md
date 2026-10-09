@@ -58,7 +58,16 @@ export DEEPSEEK_API_KEY=...                   # only for the DeepSeek teacher an
 
 Base models come from Hugging Face: `Qwen/Qwen2.5-1.5B` (Countdown line), `Qwen/Qwen2.5-1.5B-Instruct` (GSM8K), `Qwen/Qwen2.5-Coder-1.5B` (coding line). `download_qwen.py` fetches the Instruct model; `export_hf.py --out hf_base` writes a base model into the local HF-directory format the evaluators read.
 
-**Where `--init <ckpt>` comes from.** Every RL run starts from an SFT checkpoint produced by `sft_qwen.py`, saved as `out_<name>/ckpt.pt`. The number-guessing run in the README started from the Countdown line's Arm A checkpoint. Trained checkpoints are not in this repository (they are 3 GB each); a Hugging Face release is on the to-do list, until then the SFT steps in the commands below regenerate them in minutes.
+**Where `--init <ckpt>` comes from.** Every RL run starts from an SFT checkpoint produced by `sft_qwen.py`, saved as `out_<name>/ckpt.pt`. The number-guessing run in the README started from the Countdown line's Arm A checkpoint. Trained checkpoints are not in this repository (3 GB each); the ones behind the headline figure are on Hugging Face, in the standard sharded layout that transformers and vLLM load directly:
+
+| Checkpoint | What it is | Price of observation, re-measured 2026-10-08 (with tests / without) |
+|---|---|---|
+| [icedduck/lab1-sft_ex](https://huggingface.co/icedduck/lab1-sft_ex) | stage ②-B, SFT on the DeepSeek textbook | .343 / .204 |
+| [icedduck/lab1-exRL_bin](https://huggingface.co/icedduck/lab1-exRL_bin) | stage ②-B, SFT + GRPO with tests | .459 / .314 |
+| [icedduck/lab1-sft_exw](https://huggingface.co/icedduck/lab1-sft_exw) | stage ③, SFT on the weak-observation textbook | .210 / .196 |
+| [icedduck/lab1-exwRL_bin](https://huggingface.co/icedduck/lab1-exwRL_bin) | stage ③, SFT + GRPO without tests | .265 / .296 |
+
+`python3 bench_observation_price.py --hf-dir icedduck/lab1-exRL_bin` reproduces a row in about an hour on one GPU. Other checkpoints: the SFT steps in the commands below regenerate them in minutes.
 
 ## What is in this repository
 

@@ -9,6 +9,7 @@ The difference between the two scores is the price the model pays when it is dep
     source ~/vllm_env/bin/activate
     python3 bench_observation_price.py --hf-dir Qwen/Qwen2.5-Coder-7B-Instruct --model Qwen/Qwen2.5-Coder-7B-Instruct
     python3 bench_observation_price.py --hf-dir hf_exRL_bin --model hf_coder_1.5b -n 100 -s 8 --pass32
+    python3 bench_observation_price.py --hf-dir icedduck/lab1-exRL_bin     # the published checkpoint; expect about .46 / .31
 
 Runs eval_ex.py twice (as subprocesses, so vLLM frees the GPU between settings), then reads the raw records
 and prints the table below plus a figure. --from-raw re-analyses existing raw files without a GPU.

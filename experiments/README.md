@@ -27,6 +27,9 @@ Not scripted here: the two pretraining runs (§3.2, `train.py` with `config.py`)
 ```bash
 python3 bench_observation_price.py --hf-dir Qwen/Qwen2.5-Coder-7B-Instruct           # ~1 h on one 80 GB GPU
 python3 bench_observation_price.py --hf-dir <model> --split heldout -n 30 --pass32    # the 30 never-trained problems, with the ceiling
+python3 bench_observation_price.py --hf-dir icedduck/lab1-exRL_bin                    # this repository's RL-②-B checkpoint; re-measured .459 / .314
 ```
+
+The four coding checkpoints behind the figure are published as `icedduck/lab1-{sft_ex,exRL_bin,sft_exw,exwRL_bin}`; the table in the top-level README lists them with their re-measured numbers.
 
 It runs `eval_ex.py` twice (visible tests available / taken away), prints first-draft and final pass rates with the price, and draws the same figure as the report with the repository's 1.5B points as reference.

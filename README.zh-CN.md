@@ -58,7 +58,16 @@ export DEEPSEEK_API_KEY=...                   # 只有 DeepSeek 老师和问专�
 
 底模从 Hugging Face 取：`Qwen/Qwen2.5-1.5B`（Countdown 线）、`Qwen/Qwen2.5-1.5B-Instruct`（GSM8K）、`Qwen/Qwen2.5-Coder-1.5B`（编程线）。`download_qwen.py` 拉 Instruct 版；`export_hf.py --out hf_base` 把底模写成评测脚本读的本地 HF 目录格式。
 
-**`--init <ckpt>` 从哪来。** 每次 RL 都从 `sft_qwen.py` 产出的 SFT 检查点起步，存在 `out_<名字>/ckpt.pt`。README 里猜数字那条用的起点是 Countdown 线臂 A 的检查点。训练好的检查点不在仓库里（每个 3 GB），Hugging Face 发布在待办里；在那之前，下面命令里的 SFT 步骤几分钟就能重新生成。
+**`--init <ckpt>` 从哪来。** 每次 RL 都从 `sft_qwen.py` 产出的 SFT 检查点起步，存在 `out_<名字>/ckpt.pt`。README 里猜数字那条用的起点是 Countdown 线臂 A 的检查点。训练好的检查点不在仓库里（每个 3 GB）；主图用到的四个已发布在 Hugging Face，是 transformers 和 vLLM 能直接加载的标准分片格式：
+
+| 检查点 | 是什么 | 观测的价格，2026-10-08 复评（有测试 / 没测试） |
+|---|---|---|
+| [icedduck/lab1-sft_ex](https://huggingface.co/icedduck/lab1-sft_ex) | 阶段 ②-B，DeepSeek 教材 SFT | .343 / .204 |
+| [icedduck/lab1-exRL_bin](https://huggingface.co/icedduck/lab1-exRL_bin) | 阶段 ②-B，SFT 后有测试的 GRPO | .459 / .314 |
+| [icedduck/lab1-sft_exw](https://huggingface.co/icedduck/lab1-sft_exw) | 阶段 ③，弱观测教材 SFT | .210 / .196 |
+| [icedduck/lab1-exwRL_bin](https://huggingface.co/icedduck/lab1-exwRL_bin) | 阶段 ③，SFT 后没测试的 GRPO | .265 / .296 |
+
+`python3 bench_observation_price.py --hf-dir icedduck/lab1-exRL_bin` 一张卡一小时左右能复现其中一行。其余检查点用下面命令里的 SFT 步骤几分钟就能重新生成。
 
 ## 这个仓库有什么
 
