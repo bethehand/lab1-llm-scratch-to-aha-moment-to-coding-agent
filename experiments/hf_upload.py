@@ -7,7 +7,10 @@ Always talks to the official endpoint: download mirrors such as hf-mirror.com mu
 
 Built for a slow, lossy, intermittently connected link (the lab machine this repository was trained on):
     HF_HUB_DISABLE_XET=1 HF_HUB_ENABLE_HF_TRANSFER=1   upload the LFS file in parallel parts with hf_transfer
-    HFT_MAX_FILES=16          cap on parallel connections (huggingface_hub hard-codes 128, which floods a shared uplink)
+    HFT_MAX_FILES=16          cap on parallel connections per file (huggingface_hub hard-codes 128, which floods a shared uplink)
+    HF_FILES_PARALLEL=1       LFS files uploaded at once, each in its own process, largest first (with hf_transfer
+                              huggingface_hub otherwise uploads the files one after another); total connections =
+                              HF_FILES_PARALLEL x HFT_MAX_FILES. Use with RESHARD in upload_checkpoints.sh.
     HFT_MAX_RETRIES=50        retries per part (huggingface_hub hard-codes 5; one part failing 5 times aborts the file)
     HF_UPLOAD_ATTEMPTS=10     whole-folder attempts; files that finished uploading are skipped on the next attempt
     HF_WAIT_HOURS=12          before each attempt, wait (probing every 2 minutes) for the Hub, and with Xet disabled the
@@ -17,6 +20,7 @@ import os, sys, time, functools
 
 os.environ["HF_ENDPOINT"] = "https://huggingface.co"
 CAP = max(1, int(os.environ.get("HFT_MAX_FILES", "16")))
+FILES_PAR = max(1, int(os.environ.get("HF_FILES_PARALLEL", "1")))
 RETRIES = max(5, int(os.environ.get("HFT_MAX_RETRIES", "50")))
 ATTEMPTS = max(1, int(os.environ.get("HF_UPLOAD_ATTEMPTS", "10")))
 WAIT_S = float(os.environ.get("HF_WAIT_HOURS", "12")) * 3600
@@ -69,6 +73,37 @@ def wait_for_hub():
         time.sleep(120)
 
 
+def files_of(folder):
+    out = []
+    for root, _, names in os.walk(folder):
+        for n in sorted(names):
+            p = os.path.join(root, n)
+            out.append((p, os.path.relpath(p, folder).replace(os.sep, "/")))
+    return out
+
+
+def preupload_one(job):                         # runs in a worker process; skips the file if the Hub already has it
+    repo_id, path, rel = job
+    from huggingface_hub import CommitOperationAdd
+    HfApi().preupload_lfs_files(repo_id, additions=[CommitOperationAdd(path_in_repo=rel, path_or_fileobj=path)], repo_type="model")
+    return rel
+
+
+def upload(api, repo_id, folder, message):
+    from huggingface_hub import CommitOperationAdd
+    files = files_of(folder)
+    big = sorted([f for f in files if os.path.getsize(f[0]) > 10 * 1024 * 1024], key=lambda f: -os.path.getsize(f[0]))
+    if FILES_PAR > 1 and len(big) > 1:
+        import multiprocessing as mp
+        from concurrent.futures import ProcessPoolExecutor, as_completed
+        with ProcessPoolExecutor(max_workers=FILES_PAR, mp_context=mp.get_context("fork")) as ex:
+            futures = [ex.submit(preupload_one, (repo_id, p, r)) for p, r in big]
+            for i, fut in enumerate(as_completed(futures), 1):
+                log(f"  {fut.result()} on the Hub ({i}/{len(big)})")
+    ops = [CommitOperationAdd(path_in_repo=r, path_or_fileobj=p) for p, r in files]
+    return api.create_commit(repo_id=repo_id, operations=ops, commit_message=message, repo_type="model")
+
+
 repo, folder = sys.argv[1], sys.argv[2]
 message = sys.argv[3] if len(sys.argv) > 3 else f"upload {os.path.basename(os.path.normpath(folder))}"
 api = HfApi()
@@ -77,7 +112,7 @@ for attempt in range(1, ATTEMPTS + 1):
     t0 = time.time()
     try:
         api.create_repo(repo, repo_type="model", exist_ok=True)
-        info = api.upload_folder(repo_id=repo, folder_path=folder, repo_type="model", commit_message=message)
+        info = upload(api, repo, folder, message)
         log(f"uploaded {folder} -> {info} (attempt {attempt}, {time.time() - t0:.0f} s)")
         break
     except Exception as e:                      # network failures on long uploads
