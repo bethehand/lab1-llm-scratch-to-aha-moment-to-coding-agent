@@ -58,7 +58,7 @@ export DEEPSEEK_API_KEY=...                   # only for the DeepSeek teacher an
 
 Base models come from Hugging Face: `Qwen/Qwen2.5-1.5B` (Countdown line), `Qwen/Qwen2.5-1.5B-Instruct` (GSM8K), `Qwen/Qwen2.5-Coder-1.5B` (coding line). `download_qwen.py` fetches the Instruct model; `export_hf.py --out hf_base` writes a base model into the local HF-directory format the evaluators read.
 
-**Where `--init <ckpt>` comes from.** Every RL run starts from an SFT checkpoint produced by `sft_qwen.py`, saved as `out_<name>/ckpt.pt`. The number-guessing run in the README started from the Countdown line's Arm A checkpoint. Trained checkpoints are not in this repository (3 GB each); the ones behind the headline figure are on Hugging Face, in the standard sharded layout that transformers and vLLM load directly:
+**Where `--init <ckpt>` comes from.** Every RL run starts from an SFT checkpoint produced by `sft_qwen.py`, saved as `out_<name>/ckpt.pt`. The number-guessing run in the README started from the Countdown line's Arm A checkpoint. Trained checkpoints are not in this repository (3 GB each); seven are on Hugging Face, in the standard sharded layout that transformers and vLLM load directly. The coding line, behind the headline figure:
 
 | Checkpoint | What it is | Price of observation, re-measured 2026-10-08 (with tests / without) |
 |---|---|---|
@@ -67,7 +67,15 @@ Base models come from Hugging Face: `Qwen/Qwen2.5-1.5B` (Countdown line), `Qwen/
 | [icedduck/lab1-sft_exw](https://huggingface.co/icedduck/lab1-sft_exw) | stage ③, SFT on the weak-observation textbook | .210 / .196 |
 | [icedduck/lab1-exwRL_bin](https://huggingface.co/icedduck/lab1-exwRL_bin) | stage ③, SFT + GRPO without tests | .265 / .296 |
 
-`python3 bench_observation_price.py --hf-dir icedduck/lab1-exRL_bin` reproduces a row in about an hour on one GPU. Other checkpoints: the SFT steps in the commands below regenerate them in minutes.
+`python3 bench_observation_price.py --hf-dir icedduck/lab1-exRL_bin` reproduces a row in about an hour on one GPU. The Countdown line:
+
+| Checkpoint | What it is | CD-4 pass@1, 100 held-out problems × 8 |
+|---|---|---|
+| [icedduck/lab1-sft_tool](https://huggingface.co/icedduck/lab1-sft_tool) | SFT on the calculator-tool textbook; the start of Arms T and S | .710 |
+| [icedduck/lab1-armS](https://huggingface.co/icedduck/lab1-armS) | Arm S: penalty-free reward, pool screening, KL anchor | .748 |
+| [icedduck/lab1-armA](https://huggingface.co/icedduck/lab1-armA) | Arm A: calculator plus a budgeted ask-the-expert tool; the start of the number-guessing runs | .729 alone, .979 with the expert |
+
+To start a run from a published checkpoint, pass its id as `--model` and leave out `--init`; the trainer and vLLM load it directly, and the KL anchor defaults to the same weights. Checkpoints not listed here: the SFT steps in the commands below regenerate them in minutes.
 
 ## What is in this repository
 
