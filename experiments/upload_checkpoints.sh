@@ -55,6 +55,10 @@ LIST="$TIER1"; [ "${ALL:-0}" = 1 ] && LIST="$TIER1 $TIER2"
 for D in $LIST; do
   [ -d "$D" ] || { echo "skip $D (not here)"; continue; }
   REPO="$HF_USER/lab1-${D#hf_}"
+  if [ "${SKIP_DONE:-1}" = 1 ] && curl -s --max-time 20 "https://huggingface.co/api/models/$REPO" 2>/dev/null \
+       | python3 -c "import sys,json; s={x['rfilename'] for x in json.load(sys.stdin).get('siblings',[])}; sys.exit(0 if s & {'model.safetensors','model.safetensors.index.json'} else 1)" 2>/dev/null; then
+    echo "== already on the Hub $REPO (SKIP_DONE=0 to upload again)"; continue
+  fi
   rm -rf "$STAGE/$D"; mkdir -p "$STAGE/$D"
   for f in "$D"/*; do
     b=$(basename "$f"); [ "$b" = README.md ] && continue

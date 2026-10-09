@@ -42,6 +42,36 @@ except ImportError:
 
 import requests
 from huggingface_hub import HfApi
+import huggingface_hub.lfs as _lfs
+
+POST_WAIT_S = float(os.environ.get("HF_POST_WAIT_MIN", "30")) * 60
+
+
+class _PatientSession:
+    """huggingface_hub posts the LFS batch request, the multipart completion and the verify call to the Hub once, with no
+    retry. On a link where the Hub drops out while S3 stays up, a shard whose parts are all on S3 is lost because the
+    completion call hit an outage. This wrapper retries those POSTs every 30 s for up to HF_POST_WAIT_MIN minutes."""
+    def __init__(self, session):
+        self._s = session
+
+    def __getattr__(self, name):
+        return getattr(self._s, name)
+
+    def post(self, *args, **kwargs):
+        t0 = time.time()
+        while True:
+            try:
+                r = self._s.post(*args, **kwargs)
+                if r.status_code < 500 or time.time() - t0 > POST_WAIT_S:
+                    return r
+            except (requests.ConnectionError, requests.Timeout):
+                if time.time() - t0 > POST_WAIT_S:
+                    raise
+            time.sleep(30)
+
+
+_orig_get_session = _lfs.get_session
+_lfs.get_session = lambda: _PatientSession(_orig_get_session())     # lfs.py looks get_session up at call time
 
 
 def log(msg):
@@ -116,7 +146,13 @@ for attempt in range(1, ATTEMPTS + 1):
         log(f"uploaded {folder} -> {info} (attempt {attempt}, {time.time() - t0:.0f} s)")
         break
     except Exception as e:                      # network failures on long uploads
-        log(f"attempt {attempt}/{ATTEMPTS} failed after {time.time() - t0:.0f} s: {type(e).__name__}: {str(e)[:300]}")
+        cause, depth = e.__cause__, 0           # worker-process errors carry the remote traceback as the cause
+        detail = ""
+        while cause is not None and depth < 3:
+            detail = str(cause).strip().splitlines()[-1][:300] if str(cause).strip() else type(cause).__name__
+            cause, depth = cause.__cause__, depth + 1
+        log(f"attempt {attempt}/{ATTEMPTS} failed after {time.time() - t0:.0f} s: {type(e).__name__}: {str(e)[:200]}"
+            + (f" | cause: {detail}" if detail else ""))
         if attempt == ATTEMPTS:
             raise
         time.sleep(60)
