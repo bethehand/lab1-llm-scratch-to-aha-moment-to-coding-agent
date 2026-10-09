@@ -30,6 +30,6 @@ python3 bench_observation_price.py --hf-dir <model> --split heldout -n 30 --pass
 python3 bench_observation_price.py --hf-dir icedduck/lab1-exRL_bin                    # this repository's RL-②-B checkpoint; re-measured .459 / .314
 ```
 
-The four coding checkpoints behind the figure are published as `icedduck/lab1-{sft_ex,exRL_bin,sft_exw,exwRL_bin}`; the table in the top-level README lists them with their re-measured numbers.
-
 It runs `eval_ex.py` twice (visible tests available / taken away), prints first-draft and final pass rates with the price, and draws the same figure as the report with the repository's 1.5B points as reference.
+
+The four coding checkpoints behind the figure are published as `icedduck/lab1-{sft_ex,exRL_bin,sft_exw,exwRL_bin}`; the table in the top-level README lists them with their re-measured numbers.
