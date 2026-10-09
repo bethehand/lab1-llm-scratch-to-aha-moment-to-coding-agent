@@ -13,7 +13,9 @@ cd "$(dirname "$0")/.."
 : "${HF_USER:?set HF_USER to your Hugging Face account name}"
 # Mirrors such as hf-mirror.com are download-only; uploads, and the token that goes with them, must go to the official endpoint.
 export HF_ENDPOINT=https://huggingface.co
-HFCLI=$(command -v hf || command -v huggingface-cli)
+# Each repository is uploaded by experiments/hf_upload.py (official endpoint forced; optional hf_transfer with a connection cap).
+# Slow long-haul link? HF_HUB_DISABLE_XET=1 HF_HUB_ENABLE_HF_TRANSFER=1 HFT_MAX_FILES=16 (pip install hf_transfer), JOBS=1.
+PY=${PY:-python3}
 # Model cards are written into a staging directory of per-file symlinks, so the exported checkpoint directories are never modified.
 STAGE=${STAGE:-_hf_stage}
 # JOBS>1 uploads several repositories at once (each in its own process, log in $STAGE/upload_<dir>.log). On high-latency links
@@ -75,11 +77,11 @@ Weights are derived from ${BASE[$D]} and remain under the Qwen license.
 EOF
   echo "== $D -> $REPO"
   if [ "$JOBS" -le 1 ]; then
-    "$HFCLI" upload "$REPO" "$STAGE/$D" . --repo-type model --commit-message "upload $D from the lab machine"
+    "$PY" experiments/hf_upload.py "$REPO" "$STAGE/$D" "upload $D from the lab machine"
     echo "== uploaded $REPO"
   else
     while [ "$(jobs -rp | wc -l)" -ge "$JOBS" ]; do sleep 5; done
-    ( if "$HFCLI" upload "$REPO" "$STAGE/$D" . --repo-type model --commit-message "upload $D from the lab machine" > "$STAGE/upload_$D.log" 2>&1
+    ( if "$PY" experiments/hf_upload.py "$REPO" "$STAGE/$D" "upload $D from the lab machine" > "$STAGE/upload_$D.log" 2>&1
       then echo "== uploaded $REPO"; else echo "== FAILED $REPO (see $STAGE/upload_$D.log)"; fi ) &
   fi
 done

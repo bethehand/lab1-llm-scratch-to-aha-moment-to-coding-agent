@@ -44,3 +44,4 @@ docs/zh/index 2.md
 # benchmark output directories (raw records can be large)
 /bench_*/
 _hf_stage/
+.venv_hf/
