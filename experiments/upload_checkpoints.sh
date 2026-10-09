@@ -77,8 +77,8 @@ Weights are derived from ${BASE[$D]} and remain under the Qwen license.
 EOF
   echo "== $D -> $REPO"
   if [ "$JOBS" -le 1 ]; then
-    "$PY" experiments/hf_upload.py "$REPO" "$STAGE/$D" "upload $D from the lab machine"
-    echo "== uploaded $REPO"
+    if "$PY" experiments/hf_upload.py "$REPO" "$STAGE/$D" "upload $D from the lab machine"; then echo "== uploaded $REPO"
+    else echo "== FAILED $REPO"; FAILED="$FAILED $D"; fi
   else
     while [ "$(jobs -rp | wc -l)" -ge "$JOBS" ]; do sleep 5; done
     ( if "$PY" experiments/hf_upload.py "$REPO" "$STAGE/$D" "upload $D from the lab machine" > "$STAGE/upload_$D.log" 2>&1
@@ -86,4 +86,5 @@ EOF
   fi
 done
 wait
+[ -n "${FAILED:-}" ] && echo "failed:$FAILED (rerun with the same command; finished repos are re-uploaded quickly or skipped)"
 echo "done; update README.md 'Where --init comes from' with the links"
