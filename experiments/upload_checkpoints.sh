@@ -78,7 +78,7 @@ EOF
   echo "== $D -> $REPO"
   if [ "$JOBS" -le 1 ]; then
     if "$PY" experiments/hf_upload.py "$REPO" "$STAGE/$D" "upload $D from the lab machine"; then echo "== uploaded $REPO"
-    else echo "== FAILED $REPO"; FAILED="$FAILED $D"; fi
+    else echo "== FAILED $REPO"; FAILED="${FAILED:-} $D"; fi
   else
     while [ "$(jobs -rp | wc -l)" -ge "$JOBS" ]; do sleep 5; done
     ( if "$PY" experiments/hf_upload.py "$REPO" "$STAGE/$D" "upload $D from the lab machine" > "$STAGE/upload_$D.log" 2>&1
